@@ -17,7 +17,302 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
-    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --panel-bg: #1e1e1f;
+            --panel-light: #252526;
+            --accent: #d1d5db;
+            --accent-hover: #e5e7eb;
+            --text-primary: #ffffff;
+            --text-secondary: #aaaaaa;
+            --border-color: #333333;
+            --danger: #ef4444;
+            --success: #10b981;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, 'Cairo';
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .topbar {
+            height: 50px;
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            color: var(--accent);
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .topbar-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: var(--panel-bg);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            gap: 15px;
+            flex-shrink: 0;
+            overflow-y: auto;
+        }
+
+        .sidebar.left-sidebar {
+            border-left: none;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .panel {
+            background: var(--panel-light);
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+        }
+
+        .panel h3 {
+            font-size: 14px;
+            margin-bottom: 15px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
+        input[type="text"], input[type="number"], select, textarea {
+            width: 100%;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            border-radius: 4px;
+            font-family: inherit;
+            outline: none;
+        }
+        input[type="color"] {
+            width: 100%;
+            height: 35px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 2px;
+            background: var(--bg-dark);
+            cursor: pointer;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+        }
+
+        button {
+            font-family: inherit;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            padding: 10px;
+            font-weight: bold;
+            transition: 0.2s;
+            outline: none;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #000;
+        }
+        .btn-primary:hover { background: var(--accent-hover); }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            width: 100%;
+        }
+        .btn-danger:hover { background: var(--danger); color: white; }
+
+        .btn-icon {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+        .btn-icon:hover { background: var(--panel-light); border-color: var(--accent); color: var(--accent); }
+
+        .upload-btn-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+        .upload-btn-wrapper .btn-upload {
+            width: 100%;
+            background: var(--accent);
+            color: #000;
+            padding: 10px;
+        }
+        .upload-btn-wrapper.btn-secondary .btn-upload {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        .upload-btn-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            height: 100%;
+        }
+
+        .status-text {
+            font-size: 11px;
+            color: var(--success);
+            margin-top: 5px;
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        .tool-btn {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 5px;
+            font-size: 11px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        .tool-btn i { font-size: 16px; color: var(--accent); }
+        .tool-btn:hover { background: var(--border-color); }
+
+        .workspace {
+            flex: 1;
+            background: #0a0a0a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+            position: relative;
+            padding: 40px;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #555;
+            pointer-events: none;
+        }
+        .empty-state i { font-size: 60px; margin-bottom: 20px; }
+
+        .canvas-container {
+            box-shadow: 0 10px 50px rgba(0,0,0,0.8);
+            background: transparent;
+        }
+
+        .prop-group { margin-bottom: 15px; }
+        .prop-row { display: flex; gap: 10px; margin-bottom: 15px; }
+        .prop-col { flex: 1; }
+
+        .align-group { display: flex; gap: 5px; }
+        .btn-align { flex: 1; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); }
+        .btn-align.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+        .layers-list { display: flex; flex-direction: column; gap: 5px; }
+        .layer-item {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            padding: 8px 10px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .layer-item:hover { border-color: #555; }
+        .layer-item.active { border-color: var(--accent); background: rgba(198, 172, 143, 0.1); }
+        .layer-icon { color: var(--accent); width: 20px; }
+
+        .modal {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 10px;
+            background: var(--bg-dark);
+            border-radius: 5px;
+            margin: 20px 0 10px 0;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+            transition: 0.3s;
+        }
+    </style>
 </head>
 <body>
 
@@ -122,7 +417,6 @@
                     <label>ربط بعمود (متغير):</label>
                     <select id="elemColumn">
                         <option value="">-- بدون ربط (ثابت) --</option>
-                        <!-- Columns will be added here -->
                     </select>
                 </div>
                 
@@ -203,7 +497,6 @@
             <div class="panel" style="flex: 1; display: flex; flex-direction: column; min-height: 200px;">
                 <h3><i class="fas fa-bars"></i> قائمة الطبقات</h3>
                 <div id="layersList" class="layers-list" style="overflow-y: auto; flex: 1; padding-right: 5px;">
-                    <!-- Layers will be populated here -->
                 </div>
             </div>
         </aside>
@@ -220,1131 +513,685 @@
             <p style="font-size: 12px; color: #888; margin-top: 10px;">يرجى عدم إغلاق هذه النافذة حتى يكتمل التوليد.</p>
         </div>
     </div>
-    
-    <!-- Modals Removed -> Live Preview Implemented -->
 
-    <script src="script.js"></script>
-</body>
-</html>
-// --- Global State ---
-let canvas = null;
-let scaleFactor = 1;
-let excelData = [];
-let columns = [];
-let localImages = {}; // { "1.png": dataURL }
+    <script>
+        // --- Global State ---
+        let canvas = null;
+        let scaleFactor = 1;
+        let excelData = [];
+        let columns = [];
+        let localImages = {};
 
-// --- DOM Elements ---
-const dom = {
-    canvasContainer: document.getElementById('canvasContainer'),
-    emptyState: document.getElementById('emptyState'),
-    bgUploader: document.getElementById('bgUploader'),
-    excelUploader: document.getElementById('excelUploader'),
-    folderUploader: document.getElementById('folderUploader'),
-    excelStatus: document.getElementById('excelStatus'),
-    folderStatus: document.getElementById('folderStatus'),
-    
-    layersList: document.getElementById('layersList'),
-    propertiesPanel: document.getElementById('propertiesPanel'),
-    noSelectionMsg: document.getElementById('noSelectionMsg'),
-    
-    // Properties
-    elemText: document.getElementById('elemText'),
-    elemMask: document.getElementById('elemMask'),
-    elemColumn: document.getElementById('elemColumn'),
-    elemFont: document.getElementById('elemFont'),
-    elemFontSize: document.getElementById('elemFontSize'),
-    elemColor: document.getElementById('elemColor'),
-    elemColor2: document.getElementById('elemColor2'),
-    fillType: document.getElementById('fillType'),
-    elemOpacity: document.getElementById('elemOpacity'),
-    opacityVal: document.getElementById('opacityVal'),
-    elemAngle: document.getElementById('elemAngle'),
-    angleVal: document.getElementById('angleVal'),
-    btnEyedropper: document.getElementById('btnEyedropper'),
-    customFontUploader: document.getElementById('customFontUploader'),
-    alignBtns: document.querySelectorAll('.btn-align'),
-    
-    // Actions
-    btnBringForward: document.getElementById('btnBringForward'),
-    btnSendBackward: document.getElementById('btnSendBackward'),
-    btnDeleteElem: document.getElementById('btnDeleteElem'),
-    
-    // Clipping Mask
-    btnMakeClippingMask: document.getElementById('btnMakeClippingMask'),
-    btnRemoveClippingMask: document.getElementById('btnRemoveClippingMask'),
-    propClipping: document.getElementById('prop-clipping'),
-    
-    // Modals & Generate
-    btnGenerate: document.getElementById('btnGenerate'),
-    progressModal: document.getElementById('progressModal'),
-    progressBar: document.getElementById('progressBar'),
-    progressText: document.getElementById('progressText'),
-    
-    // Live Preview
-    livePreviewControls: document.getElementById('livePreviewControls'),
-    btnPrevLive: document.getElementById('btnPrevLive'),
-    btnNextLive: document.getElementById('btnNextLive'),
-    livePreviewText: document.getElementById('livePreviewText')
-};
-
-let currentPreviewIndex = -1;
-
-// --- Initialize Canvas ---
-function initCanvas(width, height) {
-    if (canvas) {
-        canvas.dispose();
-    }
-    canvas = new fabric.Canvas('canvas', {
-        width: width,
-        height: height,
-        preserveObjectStacking: true
-    });
-
-    canvas.on('selection:created', onObjectSelected);
-    canvas.on('selection:updated', onObjectSelected);
-    canvas.on('selection:cleared', onSelectionCleared);
-    canvas.on('object:modified', updateLayersList);
-}
-
-// --- Upload Background ---
-dom.bgUploader.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-            dom.emptyState.style.display = 'none';
-            dom.canvasContainer.style.display = 'block';
-
-            // Calculate scale to fit workspace
-            const workspace = document.getElementById('workspace');
-            const padding = 80;
-            const maxWidth = workspace.clientWidth - padding;
-            const maxHeight = workspace.clientHeight - padding;
-            
-            scaleFactor = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
-            const displayW = img.width * scaleFactor;
-            const displayH = img.height * scaleFactor;
-
-            initCanvas(displayW, displayH);
-
-            fabric.Image.fromURL(event.target.result, (fabricImg) => {
-                canvas.setBackgroundImage(fabricImg, canvas.renderAll.bind(canvas), {
-                    scaleX: scaleFactor,
-                    scaleY: scaleFactor
-                });
-            });
+        const dom = {
+            canvasContainer: document.getElementById('canvasContainer'),
+            emptyState: document.getElementById('emptyState'),
+            bgUploader: document.getElementById('bgUploader'),
+            excelUploader: document.getElementById('excelUploader'),
+            folderUploader: document.getElementById('folderUploader'),
+            excelStatus: document.getElementById('excelStatus'),
+            folderStatus: document.getElementById('folderStatus'),
+            layersList: document.getElementById('layersList'),
+            propertiesPanel: document.getElementById('propertiesPanel'),
+            noSelectionMsg: document.getElementById('noSelectionMsg'),
+            elemText: document.getElementById('elemText'),
+            elemMask: document.getElementById('elemMask'),
+            elemColumn: document.getElementById('elemColumn'),
+            elemFont: document.getElementById('elemFont'),
+            elemFontSize: document.getElementById('elemFontSize'),
+            elemColor: document.getElementById('elemColor'),
+            elemColor2: document.getElementById('elemColor2'),
+            fillType: document.getElementById('fillType'),
+            elemOpacity: document.getElementById('elemOpacity'),
+            opacityVal: document.getElementById('opacityVal'),
+            elemAngle: document.getElementById('elemAngle'),
+            angleVal: document.getElementById('angleVal'),
+            btnEyedropper: document.getElementById('btnEyedropper'),
+            customFontUploader: document.getElementById('customFontUploader'),
+            alignBtns: document.querySelectorAll('.btn-align'),
+            btnBringForward: document.getElementById('btnBringForward'),
+            btnSendBackward: document.getElementById('btnSendBackward'),
+            btnDeleteElem: document.getElementById('btnDeleteElem'),
+            btnMakeClippingMask: document.getElementById('btnMakeClippingMask'),
+            btnRemoveClippingMask: document.getElementById('btnRemoveClippingMask'),
+            propClipping: document.getElementById('prop-clipping'),
+            btnGenerate: document.getElementById('btnGenerate'),
+            progressModal: document.getElementById('progressModal'),
+            progressBar: document.getElementById('progressBar'),
+            progressText: document.getElementById('progressText'),
+            livePreviewControls: document.getElementById('livePreviewControls'),
+            btnPrevLive: document.getElementById('btnPrevLive'),
+            btnNextLive: document.getElementById('btnNextLive'),
+            livePreviewText: document.getElementById('livePreviewText')
         };
-        img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
-});
 
-// --- Upload Excel ---
-dom.excelUploader.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+        let currentPreviewIndex = -1;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, {type: 'array'});
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        excelData = XLSX.utils.sheet_to_json(firstSheet);
-        
-        if (excelData.length > 0) {
-            columns = Object.keys(excelData[0]);
-            dom.excelStatus.innerHTML = `<i class="fas fa-check-circle"></i> تم الربط (${excelData.length} سجل, ${columns.length} أعمدة)`;
-            updateColumnDropdowns();
-            
-            // Enable live preview
-            currentPreviewIndex = 0;
-            dom.livePreviewControls.style.display = 'flex';
-            updateLivePreviewUI();
+        function initCanvas(width, height) {
+            if (canvas) canvas.dispose();
+            canvas = new fabric.Canvas('canvas', {
+                width: width,
+                height: height,
+                preserveObjectStacking: true
+            });
+            canvas.on('selection:created', onObjectSelected);
+            canvas.on('selection:updated', onObjectSelected);
+            canvas.on('selection:cleared', onSelectionCleared);
+            canvas.on('object:modified', updateLayersList);
         }
-    };
-    reader.readAsArrayBuffer(file);
-});
 
-function updateColumnDropdowns() {
-    let options = '<option value="">-- بدون ربط (ثابت) --</option>';
-    columns.forEach(col => {
-        options += `<option value="${col}">${col}</option>`;
-    });
-    dom.elemColumn.innerHTML = options;
-}
-
-// --- Upload Images Folder ---
-dom.folderUploader.addEventListener('change', (e) => {
-    const files = e.target.files;
-    if (files.length === 0) return;
-    
-    localImages = {};
-    let loadedCount = 0;
-    
-    dom.folderStatus.innerHTML = `<i class="fas fa-spinner fa-spin"></i> جاري قراءة الصور...`;
-
-    Array.from(files).forEach(file => {
-        if(file.type.startsWith('image/')) {
+        dom.bgUploader.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
             const reader = new FileReader();
             reader.onload = (event) => {
-                localImages[file.name] = event.target.result;
-                loadedCount++;
-                if (loadedCount === Array.from(files).filter(f => f.type.startsWith('image/')).length) {
-                    dom.folderStatus.innerHTML = `<i class="fas fa-check-circle"></i> تم تحميل ${loadedCount} صورة`;
-                    // Update preview if active
-                    if (currentPreviewIndex >= 0) applyLivePreview(currentPreviewIndex);
-                }
+                const img = new Image();
+                img.onload = () => {
+                    dom.emptyState.style.display = 'none';
+                    dom.canvasContainer.style.display = 'block';
+                    const workspace = document.getElementById('workspace');
+                    const padding = 80;
+                    const maxWidth = workspace.clientWidth - padding;
+                    const maxHeight = workspace.clientHeight - padding;
+                    scaleFactor = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
+                    const displayW = img.width * scaleFactor;
+                    const displayH = img.height * scaleFactor;
+                    initCanvas(displayW, displayH);
+                    fabric.Image.fromURL(event.target.result, (fabricImg) => {
+                        canvas.setBackgroundImage(fabricImg, canvas.renderAll.bind(canvas), {
+                            scaleX: scaleFactor,
+                            scaleY: scaleFactor
+                        });
+                    });
+                };
+                img.src = event.target.result;
             };
             reader.readAsDataURL(file);
+        });
+
+        dom.excelUploader.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                excelData = XLSX.utils.sheet_to_json(firstSheet);
+                if (excelData.length > 0) {
+                    columns = Object.keys(excelData[0]);
+                    dom.excelStatus.innerHTML = `<i class="fas fa-check-circle"></i> تم الربط (${excelData.length} سجل, ${columns.length} أعمدة)`;
+                    updateColumnDropdowns();
+                    currentPreviewIndex = 0;
+                    dom.livePreviewControls.style.display = 'flex';
+                    updateLivePreviewUI();
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function updateColumnDropdowns() {
+            let options = '<option value="">-- بدون ربط (ثابت) --</option>';
+            columns.forEach(col => {
+                options += `<option value="${col}">${col}</option>`;
+            });
+            dom.elemColumn.innerHTML = options;
         }
-    });
-});
 
-// --- Add Elements ---
-document.getElementById('addTextBtn').addEventListener('click', () => {
-    if(!canvas) return alert('قم برفع القالب أولاً!');
-    const text = new fabric.IText('نص جديد', {
-        left: canvas.width / 2, top: canvas.height / 2,
-        fontFamily: 'Cairo', fontSize: 40, fill: '#ffffff',
-        originX: 'center', originY: 'center',
-        customType: 'text' // Custom property
-    });
-    canvas.add(text);
-    canvas.setActiveObject(text);
-    updateLayersList();
-});
+        dom.folderUploader.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files.length === 0) return;
+            localImages = {};
+            let loadedCount = 0;
+            const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+            dom.folderStatus.innerHTML = `<i class="fas fa-spinner fa-spin"></i> جاري قراءة الصور...`;
+            imageFiles.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    localImages[file.name] = event.target.result;
+                    loadedCount++;
+                    if (loadedCount === imageFiles.length) {
+                        dom.folderStatus.innerHTML = `<i class="fas fa-check-circle"></i> تم تحميل ${loadedCount} صورة`;
+                        if (currentPreviewIndex >= 0) applyLivePreview(currentPreviewIndex);
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        });
 
-document.getElementById('addImageBtn').addEventListener('click', () => {
-    if(!canvas) return alert('قم برفع القالب أولاً!');
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => {
-        const file = e.target.files[0];
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            fabric.Image.fromURL(event.target.result, (img) => {
+        document.getElementById('addTextBtn').addEventListener('click', () => {
+            if(!canvas) return alert('قم برفع القالب أولاً!');
+            const text = new fabric.IText('نص جديد', {
+                left: canvas.width / 2, top: canvas.height / 2,
+                fontFamily: 'Cairo', fontSize: 40, fill: '#ffffff',
+                originX: 'center', originY: 'center',
+                customType: 'text'
+            });
+            canvas.add(text);
+            canvas.setActiveObject(text);
+            updateLayersList();
+        });
+
+        document.getElementById('addImageBtn').addEventListener('click', () => {
+            if(!canvas) return alert('قم برفع القالب أولاً!');
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if(!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    fabric.Image.fromURL(event.target.result, (img) => {
+                        img.set({
+                            left: canvas.width / 2, top: canvas.height / 2,
+                            originX: 'center', originY: 'center',
+                            customType: 'image'
+                        });
+                        img.scaleToWidth(150);
+                        canvas.add(img);
+                        canvas.setActiveObject(img);
+                        updateLayersList();
+                    });
+                };
+                reader.readAsDataURL(file);
+            };
+            input.click();
+        });
+
+        document.getElementById('addDynamicImageBtn').addEventListener('click', () => {
+            if(!canvas) return alert('قم برفع القالب أولاً!');
+            const svgData = "data:image/svg+xml;charset=utf-8," + encodeURIComponent('<svg width="150" height="150" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#cccccc" /><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="20" fill="#333">صورة متغيرة</text></svg>');
+            fabric.Image.fromURL(svgData, (img) => {
                 img.set({
                     left: canvas.width / 2, top: canvas.height / 2,
                     originX: 'center', originY: 'center',
-                    customType: 'image'
+                    customType: 'dynamicImage'
                 });
-                img.scaleToWidth(150);
                 canvas.add(img);
                 canvas.setActiveObject(img);
                 updateLayersList();
             });
-        };
-        reader.readAsDataURL(file);
-    };
-    input.click();
-});
-
-document.getElementById('addDynamicImageBtn').addEventListener('click', () => {
-    if(!canvas) return alert('قم برفع القالب أولاً!');
-    const svgData = "data:image/svg+xml;charset=utf-8," + encodeURIComponent('<svg width="150" height="150" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#cccccc" /><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="20" fill="#333">صورة متغيرة</text></svg>');
-    fabric.Image.fromURL(svgData, (img) => {
-        img.set({
-            left: canvas.width / 2, top: canvas.height / 2,
-            originX: 'center', originY: 'center',
-            customType: 'dynamicImage'
-        });
-        canvas.add(img);
-        canvas.setActiveObject(img);
-        updateLayersList();
-    });
-});
-
-document.getElementById('addRectBtn').addEventListener('click', () => {
-    if(!canvas) return;
-    const rect = new fabric.Rect({
-        left: canvas.width / 2, top: canvas.height / 2,
-        width: 100, height: 100, fill: '#c6ac8f',
-        originX: 'center', originY: 'center', customType: 'shape'
-    });
-    canvas.add(rect);
-    canvas.setActiveObject(rect);
-    updateLayersList();
-});
-
-document.getElementById('addCircleBtn').addEventListener('click', () => {
-    if(!canvas) return;
-    const circle = new fabric.Circle({
-        left: canvas.width / 2, top: canvas.height / 2,
-        radius: 50, fill: '#c6ac8f',
-        originX: 'center', originY: 'center', customType: 'shape'
-    });
-    canvas.add(circle);
-    canvas.setActiveObject(circle);
-    updateLayersList();
-});
-
-document.getElementById('addTriangleBtn').addEventListener('click', () => {
-    if(!canvas) return;
-    const shape = new fabric.Triangle({
-        left: canvas.width / 2, top: canvas.height / 2, width: 100, height: 100, fill: '#c6ac8f', originX: 'center', originY: 'center', customType: 'shape'
-    });
-    canvas.add(shape); canvas.setActiveObject(shape); updateLayersList();
-});
-
-document.getElementById('addStarBtn').addEventListener('click', () => {
-    if(!canvas) return;
-    const points = [
-        {x: 50, y: 0}, {x: 61, y: 35}, {x: 98, y: 35}, {x: 68, y: 57}, 
-        {x: 79, y: 91}, {x: 50, y: 70}, {x: 21, y: 91}, {x: 32, y: 57}, 
-        {x: 2, y: 35}, {x: 39, y: 35}
-    ];
-    const shape = new fabric.Polygon(points, {
-        left: canvas.width / 2, top: canvas.height / 2, fill: '#c6ac8f', originX: 'center', originY: 'center', customType: 'shape', scaleX: 1.5, scaleY: 1.5
-    });
-    canvas.add(shape); canvas.setActiveObject(shape); updateLayersList();
-});
-
-document.getElementById('addHeartBtn').addEventListener('click', () => {
-    if(!canvas) return;
-    const path = "M 272.7,238.7 C 206.4,238.7 152.7,292.4 152.7,358.7 C 152.7,493.4 288.6,528.8 381.2,662.0 C 468.8,529.6 609.8,489.1 609.8,358.7 C 609.8,292.4 556.0,238.7 489.8,238.7 C 441.7,238.7 400.4,266.9 381.2,309.5 C 362.1,266.9 320.7,238.7 272.7,238.7 z";
-    const shape = new fabric.Path(path, {
-        left: canvas.width / 2, top: canvas.height / 2, fill: '#c6ac8f', originX: 'center', originY: 'center', customType: 'shape'
-    });
-    shape.scaleToWidth(100);
-    canvas.add(shape); canvas.setActiveObject(shape); updateLayersList();
-});
-
-document.getElementById('addArrowBtn').addEventListener('click', () => {
-    if(!canvas) return;
-    const points = [
-        {x: 0, y: 20}, {x: 60, y: 20}, {x: 60, y: 0}, {x: 100, y: 30},
-        {x: 60, y: 60}, {x: 60, y: 40}, {x: 0, y: 40}
-    ];
-    const shape = new fabric.Polygon(points, {
-        left: canvas.width / 2, top: canvas.height / 2, fill: '#c6ac8f', originX: 'center', originY: 'center', customType: 'shape'
-    });
-    canvas.add(shape); canvas.setActiveObject(shape); updateLayersList();
-});
-
-// --- Layers List ---
-function updateLayersList() {
-    if(!canvas) return;
-    dom.layersList.innerHTML = '';
-    const objects = canvas.getObjects();
-    const activeObj = canvas.getActiveObject();
-
-    // Fabric renders [0] at bottom, so we reverse for UI
-    [...objects].reverse().forEach((obj, reversedIndex) => {
-        const originalIndex = objects.length - 1 - reversedIndex;
-        
-        let icon = 'fa-cube';
-        let name = 'عنصر';
-        
-        if(obj.type === 'i-text') { icon = 'fa-font'; name = obj.text.substring(0, 10) + '...'; }
-        else if(obj.type === 'image') { icon = 'fa-image'; name = obj.customType === 'dynamicImage' ? 'صورة متغيرة' : 'صورة'; }
-        else if(obj.type === 'rect') { icon = 'fa-square'; name = 'مربع'; }
-        else if(obj.type === 'circle') { icon = 'fa-circle'; name = 'دائرة'; }
-        else if(obj.type === 'triangle') { icon = 'fa-caret-up'; name = 'مثلث'; }
-        else if(obj.type === 'polygon' || obj.type === 'path') { icon = 'fa-draw-polygon'; name = 'شكل'; }
-
-        // If mapped to a column, show it
-        if(obj.mappedColumn) {
-            name += ` [${obj.mappedColumn}]`;
-        }
-
-        const div = document.createElement('div');
-        div.className = `layer-item ${obj === activeObj ? 'active' : ''}`;
-        div.innerHTML = `
-            <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
-                <i class="fas ${icon} layer-icon"></i>
-                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</span>
-            </div>
-            <i class="fas fa-eye" style="color:#888; font-size:10px;"></i>
-        `;
-        div.onclick = () => {
-            canvas.setActiveObject(obj);
-            canvas.renderAll();
-        };
-        dom.layersList.appendChild(div);
-    });
-}
-
-// --- Properties Panel ---
-function onObjectSelected(e) {
-    const obj = e.selected[0];
-    if(!obj) return;
-
-    dom.noSelectionMsg.style.display = 'none';
-    dom.propertiesPanel.style.display = 'block';
-
-    // Reset UI
-    document.getElementById('prop-text-content').style.display = 'none';
-    document.getElementById('prop-font').style.display = 'none';
-    document.getElementById('prop-font-size').style.display = 'none';
-    document.getElementById('prop-color-group').style.display = 'none';
-    document.getElementById('prop-mask').style.display = 'none';
-    dom.propClipping.style.display = 'none';
-
-    // Populate common
-    dom.elemOpacity.value = obj.opacity || 1;
-    dom.opacityVal.innerText = Math.round((obj.opacity || 1) * 100);
-    dom.elemAngle.value = Math.round(obj.angle || 0);
-    dom.angleVal.innerText = Math.round(obj.angle || 0);
-    dom.elemColumn.value = obj.mappedColumn || '';
-
-    // Specifics
-    if (obj.type === 'i-text') {
-        document.getElementById('prop-text-content').style.display = 'block';
-        document.getElementById('prop-font').style.display = 'block';
-        document.getElementById('prop-font-size').style.display = 'block';
-        document.getElementById('prop-color-group').style.display = 'block';
-
-        dom.elemText.value = obj.text;
-        dom.elemFont.value = obj.fontFamily;
-        dom.elemFontSize.value = Math.round(obj.fontSize);
-        setUIFromFill(obj.fill);
-        updateAlignBtns(obj.textAlign);
-    } 
-    else if (obj.type === 'rect' || obj.type === 'circle' || obj.type === 'triangle' || obj.type === 'polygon' || obj.type === 'path') {
-        document.getElementById('prop-color-group').style.display = 'block';
-        setUIFromFill(obj.fill);
-    }
-    else if (obj.type === 'image' || obj.customType === 'dynamicImage') {
-        document.getElementById('prop-mask').style.display = 'block';
-        dom.propClipping.style.display = 'block';
-        dom.elemMask.value = obj.maskType || 'none';
-    }
-
-    updateLayersList();
-}
-
-function onSelectionCleared() {
-    dom.noSelectionMsg.style.display = 'block';
-    dom.propertiesPanel.style.display = 'none';
-    updateLayersList();
-}
-
-// --- Live Edit Handlers ---
-dom.elemText.addEventListener('input', (e) => {
-    const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'i-text') { obj.set('text', e.target.value); canvas.renderAll(); updateLayersList(); }
-});
-dom.elemMask.addEventListener('change', (e) => {
-    const obj = canvas.getActiveObject();
-    if(obj && (obj.type === 'image' || obj.customType === 'dynamicImage')) { 
-        obj.maskType = e.target.value; 
-        applyMaskToObject(obj);
-        canvas.renderAll(); 
-    }
-});
-function applyMaskToObject(obj) {
-    if (!obj.maskType || obj.maskType === 'none') {
-        obj.clipPath = null;
-        obj.set('dirty', true);
-        return;
-    }
-    const w = obj.width;
-    const h = obj.height;
-    
-    if (obj.maskType === 'circle') {
-        const radius = Math.min(w, h) / 2;
-        obj.clipPath = new fabric.Circle({
-            radius: radius, originX: 'center', originY: 'center', left: 0, top: 0, absolutePositioned: false
-        });
-    } else if (obj.maskType === 'roundRect') {
-        obj.clipPath = new fabric.Rect({
-            width: w, height: h, rx: Math.min(w, h) * 0.15, ry: Math.min(w, h) * 0.15,
-            originX: 'center', originY: 'center', left: 0, top: 0, absolutePositioned: false
-        });
-    }
-    obj.set('dirty', true);
-}
-
-dom.elemColumn.addEventListener('change', (e) => {
-    const obj = canvas.getActiveObject();
-    if(obj) { 
-        obj.mappedColumn = e.target.value; 
-        
-        // Save placeholder bounds for images if not saved yet
-        if((obj.type === 'image' || obj.customType === 'dynamicImage') && !obj.placeholderBounds) {
-            obj.placeholderBounds = {
-                w: obj.width * obj.scaleX,
-                h: obj.height * obj.scaleY
-            };
-        }
-
-        updateLayersList(); 
-        
-        // Live update if mapping changed
-        if (currentPreviewIndex >= 0 && obj.mappedColumn) {
-            applyLivePreview(currentPreviewIndex);
-        }
-    }
-});
-dom.elemFont.addEventListener('change', (e) => {
-    const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'i-text') { obj.set('fontFamily', e.target.value); canvas.renderAll(); }
-});
-dom.elemFontSize.addEventListener('input', (e) => {
-    const obj = canvas.getActiveObject();
-    if(obj && obj.type === 'i-text') { obj.set('fontSize', parseInt(e.target.value)); canvas.renderAll(); }
-});
-
-function setUIFromFill(fill) {
-    if (fill && typeof fill === 'object' && fill.type === 'linear') {
-        dom.fillType.value = 'gradient';
-        dom.elemColor.value = fill.colorStops[0].color;
-        dom.elemColor2.value = fill.colorStops[1].color;
-        dom.elemColor2.style.display = 'inline-block';
-    } else {
-        dom.fillType.value = 'solid';
-        dom.elemColor.value = (typeof fill === 'string') ? fill : '#000000';
-        dom.elemColor2.style.display = 'none';
-    }
-}
-
-function updateObjectFill() {
-    const obj = canvas.getActiveObject();
-    if (!obj) return;
-    
-    if (dom.fillType.value === 'gradient') {
-        const c1 = dom.elemColor.value;
-        const c2 = dom.elemColor2.value;
-        dom.elemColor2.style.display = 'inline-block';
-        
-        // Ensure valid width/height exists for gradient coordinates
-        const w = obj.width || 100;
-        const h = obj.height || 100;
-        
-        const gradient = new fabric.Gradient({
-            type: 'linear',
-            gradientUnits: 'pixels',
-            coords: { x1: 0, y1: 0, x2: w, y2: h },
-            colorStops: [
-                { offset: 0, color: c1 },
-                { offset: 1, color: c2 }
-            ]
-        });
-        obj.set('fill', gradient);
-    } else {
-        dom.elemColor2.style.display = 'none';
-        obj.set('fill', dom.elemColor.value);
-    }
-    canvas.renderAll();
-}
-
-dom.fillType.addEventListener('change', updateObjectFill);
-dom.elemColor.addEventListener('input', updateObjectFill);
-dom.elemColor2.addEventListener('input', updateObjectFill);
-
-dom.elemOpacity.addEventListener('input', (e) => {
-    const obj = canvas.getActiveObject();
-    if(obj) { 
-        obj.set('opacity', parseFloat(e.target.value)); 
-        dom.opacityVal.innerText = Math.round(e.target.value * 100);
-        canvas.renderAll(); 
-    }
-});
-
-dom.elemAngle.addEventListener('input', (e) => {
-    const obj = canvas.getActiveObject();
-    if(obj) { 
-        obj.set('angle', parseFloat(e.target.value)); 
-        dom.angleVal.innerText = e.target.value;
-        canvas.renderAll(); 
-    }
-});
-
-// Align
-dom.alignBtns.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        const align = btn.getAttribute('data-align');
-        const obj = canvas.getActiveObject();
-        if(obj && obj.type === 'i-text') {
-            obj.set('textAlign', align);
-            canvas.renderAll();
-            updateAlignBtns(align);
-        }
-    });
-});
-function updateAlignBtns(align) {
-    dom.alignBtns.forEach(b => b.classList.remove('active'));
-    document.querySelector(`.btn-align[data-align="${align || 'left'}"]`)?.classList.add('active');
-}
-
-// Order & Delete
-dom.btnBringForward.onclick = () => { const obj = canvas.getActiveObject(); if(obj){ canvas.bringForward(obj); updateLayersList();} };
-dom.btnSendBackward.onclick = () => { const obj = canvas.getActiveObject(); if(obj){ canvas.sendBackwards(obj); updateLayersList();} };
-dom.btnDeleteElem.onclick = () => { const obj = canvas.getActiveObject(); if(obj){ canvas.remove(obj); updateLayersList();} };
-
-// Advanced Clipping Mask (Photoshop Style)
-dom.btnMakeClippingMask.onclick = () => {
-    const activeObj = canvas.getActiveObject();
-    if (!activeObj || (activeObj.type !== 'image' && activeObj.customType !== 'dynamicImage')) return;
-    
-    const objects = canvas.getObjects();
-    const index = objects.indexOf(activeObj);
-    if (index > 0) {
-        const maskShape = objects[index - 1];
-        maskShape.clone((cloned) => {
-            cloned.absolutePositioned = true;
-            activeObj.clipPath = cloned;
-            activeObj.set('dirty', true);
-            canvas.renderAll();
-        });
-    } else {
-        alert("لا يوجد شكل أسفل هذه الصورة لعمل ماسك. يرجى إضافة شكل وسحبه ليكون تحت الصورة مباشرة في قائمة الطبقات.");
-    }
-};
-
-dom.btnRemoveClippingMask.onclick = () => {
-    const activeObj = canvas.getActiveObject();
-    if (activeObj) {
-        activeObj.clipPath = null;
-        activeObj.set('dirty', true);
-        canvas.renderAll();
-    }
-};
-
-// Eyedropper API
-dom.btnEyedropper.onclick = async () => {
-    if (!window.EyeDropper) {
-        alert("متصفحك لا يدعم القطارة (EyeDropper API)");
-        return;
-    }
-    const eyeDropper = new EyeDropper();
-    try {
-        const result = await eyeDropper.open();
-        dom.elemColor.value = result.sRGBHex;
-        const obj = canvas.getActiveObject();
-        if(obj) { obj.set('fill', result.sRGBHex); canvas.renderAll(); }
-    } catch (e) {
-        console.log('Eyedropper closed');
-    }
-};
-
-// Custom Font Upload
-dom.customFontUploader.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if(!file) return;
-    const fontName = 'Custom_' + Date.now();
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        const fontFace = new FontFace(fontName, `url(${event.target.result})`);
-        fontFace.load().then((loadedFace) => {
-            document.fonts.add(loadedFace);
-            const option = document.createElement('option');
-            option.value = fontName;
-            option.text = fontName;
-            dom.elemFont.add(option);
-            dom.elemFont.value = fontName;
-            const obj = canvas.getActiveObject();
-            if(obj && obj.type === 'i-text') { obj.set('fontFamily', fontName); canvas.renderAll(); }
-            alert('تم تحميل الخط بنجاح!');
-        }).catch(err => alert("فشل تحميل الخط"));
-    };
-    reader.readAsDataURL(file);
-});
-
-// --- Generation Core Logic ---
-
-function findLocalImage(val) {
-    if(!val) return null;
-    let nameStr = val.toString().trim();
-    if(localImages[nameStr]) return localImages[nameStr];
-    
-    // Exact match ignoring case
-    for(let key in localImages) {
-        if(key.toLowerCase() === nameStr.toLowerCase()) return localImages[key];
-    }
-    
-    // Match ignoring extension
-    for(let key in localImages) {
-        let nameWithoutExt = key.split('.').slice(0, -1).join('.');
-        if(nameWithoutExt.toLowerCase() === nameStr.toLowerCase() || nameWithoutExt === nameStr) return localImages[key];
-    }
-    return null;
-}
-
-// We need to render the canvas exactly as it is, but swapping mapped variables
-async function generateImageForRow(row) {
-    return new Promise((resolve) => {
-        const objects = canvas.getObjects();
-        let imagesToLoad = 0;
-        let imagesLoaded = 0;
-
-        const checkResolve = () => {
-            if(imagesLoaded === imagesToLoad) {
-                canvas.renderAll();
-                const dataURL = canvas.toDataURL({ format: 'jpeg', quality: 1, multiplier: 1/scaleFactor });
-                resolve(dataURL);
-            }
-        };
-
-        objects.forEach(obj => {
-            if (obj.mappedColumn && row[obj.mappedColumn] !== undefined) {
-                const val = row[obj.mappedColumn].toString();
-                
-                if (obj.type === 'i-text') {
-                    // It's a text layer
-                    obj.set('text', val);
-                } else if (obj.type === 'image' && (obj.customType === 'image' || obj.customType === 'dynamicImage')) {
-                    // It's an image layer, the value should match a local image
-                    const imgDataUrl = findLocalImage(val);
-                    if (imgDataUrl) {
-                        imagesToLoad++;
-                        fabric.Image.fromURL(imgDataUrl, (newImg) => {
-                            // Proportional scaling to fit the placeholder bounds
-                            let boxW = obj.placeholderBounds ? obj.placeholderBounds.w : (obj.width * obj.scaleX);
-                            let boxH = obj.placeholderBounds ? obj.placeholderBounds.h : (obj.height * obj.scaleY);
-                            
-                            // If it's a dynamic image, save its initial bounds if not present
-                            if(!obj.placeholderBounds) obj.placeholderBounds = { w: boxW, h: boxH };
-
-                            // Calculate scale to fit inside box without distortion (contain)
-                            let scale = Math.min(boxW / newImg.width, boxH / newImg.height);
-                            
-                            obj.setElement(newImg.getElement());
-                            obj.set({
-                                width: newImg.width,
-                                height: newImg.height,
-                                scaleX: scale,
-                                scaleY: scale
-                            });
-                            
-                            applyMaskToObject(obj);
-                            
-                            imagesLoaded++;
-                            checkResolve();
-                        });
-                    }
-                }
-            }
         });
 
-        if (imagesToLoad === 0) {
-            checkResolve();
-        }
-    });
-}
-
-function captureOriginalStates() {
-    const states = [];
-    canvas.getObjects().forEach(obj => {
-        states.push({
-            type: obj.type,
-            text: obj.type === 'i-text' ? obj.text : null,
-            element: obj.type === 'image' ? obj.getElement() : null,
-            width: obj.width,
-            height: obj.height,
-            scaleX: obj.scaleX,
-            scaleY: obj.scaleY,
-            angle: obj.angle,
-            maskType: obj.maskType
-        });
-    });
-    return states;
-}
-
-// To revert back to original state after generation/preview
-function revertCanvasState(originalStates) {
-    const objects = canvas.getObjects();
-    objects.forEach((obj, i) => {
-        if (originalStates[i].type === 'i-text') {
-            obj.set('text', originalStates[i].text);
-        } else if (originalStates[i].type === 'image') {
-            obj.setElement(originalStates[i].element);
-            obj.set({
-                width: originalStates[i].width,
-                height: originalStates[i].height,
-                scaleX: originalStates[i].scaleX,
-                scaleY: originalStates[i].scaleY,
-                angle: originalStates[i].angle
+        document.getElementById('addRectBtn').addEventListener('click', () => {
+            if(!canvas) return;
+            const rect = new fabric.Rect({
+                left: canvas.width / 2, top: canvas.height / 2,
+                width: 100, height: 100, fill: '#c6ac8f',
+                originX: 'center', originY: 'center', customType: 'shape'
             });
-            obj.maskType = originalStates[i].maskType;
-            applyMaskToObject(obj);
+            canvas.add(rect); canvas.setActiveObject(rect); updateLayersList();
+        });
+
+        document.getElementById('addCircleBtn').addEventListener('click', () => {
+            if(!canvas) return;
+            const circle = new fabric.Circle({
+                left: canvas.width / 2, top: canvas.height / 2,
+                radius: 50, fill: '#c6ac8f',
+                originX: 'center', originY: 'center', customType: 'shape'
+            });
+            canvas.add(circle); canvas.setActiveObject(circle); updateLayersList();
+        });
+
+        document.getElementById('addTriangleBtn').addEventListener('click', () => {
+            if(!canvas) return;
+            const shape = new fabric.Triangle({
+                left: canvas.width / 2, top: canvas.height / 2, width: 100, height: 100, fill: '#c6ac8f', originX: 'center', originY: 'center', customType: 'shape'
+            });
+            canvas.add(shape); canvas.setActiveObject(shape); updateLayersList();
+        });
+
+        document.getElementById('addStarBtn').addEventListener('click', () => {
+            if(!canvas) return;
+            const points = [
+                {x: 50, y: 0}, {x: 61, y: 35}, {x: 98, y: 35}, {x: 68, y: 57}, 
+                {x: 79, y: 91}, {x: 50, y: 70}, {x: 21, y: 91}, {x: 32, y: 57}, 
+                {x: 2, y: 35}, {x: 39, y: 35}
+            ];
+            const shape = new fabric.Polygon(points, {
+                left: canvas.width / 2, top: canvas.height / 2, fill: '#c6ac8f', originX: 'center', originY: 'center', customType: 'shape', scaleX: 1.5, scaleY: 1.5
+            });
+            canvas.add(shape); canvas.setActiveObject(shape); updateLayersList();
+        });
+
+        document.getElementById('addHeartBtn').addEventListener('click', () => {
+            if(!canvas) return;
+            const path = "M 272.7,238.7 C 206.4,238.7 152.7,292.4 152.7,358.7 C 152.7,493.4 288.6,528.8 381.2,662.0 C 468.8,529.6 609.8,489.1 609.8,358.7 C 609.8,292.4 556.0,238.7 489.8,238.7 C 441.7,238.7 400.4,266.9 381.2,309.5 C 362.1,266.9 320.7,238.7 272.7,238.7 z";
+            const shape = new fabric.Path(path, {
+                left: canvas.width / 2, top: canvas.height / 2, fill: '#c6ac8f', originX: 'center', originY: 'center', customType: 'shape'
+            });
+            shape.scaleToWidth(100);
+            canvas.add(shape); canvas.setActiveObject(shape); updateLayersList();
+        });
+
+        document.getElementById('addArrowBtn').addEventListener('click', () => {
+            if(!canvas) return;
+            const points = [
+                {x: 0, y: 20}, {x: 60, y: 20}, {x: 60, y: 0}, {x: 100, y: 30},
+                {x: 60, y: 60}, {x: 60, y: 40}, {x: 0, y: 40}
+            ];
+            const shape = new fabric.Polygon(points, {
+                left: canvas.width / 2, top: canvas.height / 2, fill: '#c6ac8f', originX: 'center', originY: 'center', customType: 'shape'
+            });
+            canvas.add(shape); canvas.setActiveObject(shape); updateLayersList();
+        });
+
+        function updateLayersList() {
+            if(!canvas) return;
+            dom.layersList.innerHTML = '';
+            const objects = canvas.getObjects();
+            const activeObj = canvas.getActiveObject();
+            [...objects].reverse().forEach((obj, reversedIndex) => {
+                const originalIndex = objects.length - 1 - reversedIndex;
+                let icon = 'fa-cube';
+                let name = 'عنصر';
+                if(obj.type === 'i-text') { icon = 'fa-font'; name = obj.text.substring(0, 10) + '...'; }
+                else if(obj.type === 'image') { icon = 'fa-image'; name = obj.customType === 'dynamicImage' ? 'صورة متغيرة' : 'صورة'; }
+                else if(obj.type === 'rect') { icon = 'fa-square'; name = 'مربع'; }
+                else if(obj.type === 'circle') { icon = 'fa-circle'; name = 'دائرة'; }
+                else if(obj.type === 'triangle') { icon = 'fa-caret-up'; name = 'مثلث'; }
+                else if(obj.type === 'polygon' || obj.type === 'path') { icon = 'fa-draw-polygon'; name = 'شكل'; }
+                if(obj.mappedColumn) name += ` [${obj.mappedColumn}]`;
+                const div = document.createElement('div');
+                div.className = `layer-item ${obj === activeObj ? 'active' : ''}`;
+                div.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+                        <i class="fas ${icon} layer-icon"></i>
+                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</span>
+                    </div>
+                    <i class="fas fa-eye" style="color:#888; font-size:10px;"></i>
+                `;
+                div.onclick = () => { canvas.setActiveObject(obj); canvas.renderAll(); };
+                dom.layersList.appendChild(div);
+            });
         }
-    });
-    canvas.renderAll();
-}
 
-// --- Bulk Generate & ZIP ---
-dom.btnGenerate.onclick = async () => {
-    if(!canvas || excelData.length === 0) {
-        return alert("يجب رفع القالب وملف الإكسيل أولاً!");
-    }
-    
-    // Deselect
-    canvas.discardActiveObject();
-    canvas.renderAll();
+        function onObjectSelected(e) {
+            const obj = e.selected[0];
+            if(!obj) return;
+            dom.noSelectionMsg.style.display = 'none';
+            dom.propertiesPanel.style.display = 'block';
+            document.getElementById('prop-text-content').style.display = 'none';
+            document.getElementById('prop-font').style.display = 'none';
+            document.getElementById('prop-font-size').style.display = 'none';
+            document.getElementById('prop-color-group').style.display = 'none';
+            document.getElementById('prop-mask').style.display = 'none';
+            dom.propClipping.style.display = 'none';
+            dom.elemOpacity.value = obj.opacity || 1;
+            dom.opacityVal.innerText = Math.round((obj.opacity || 1) * 100);
+            dom.elemAngle.value = Math.round(obj.angle || 0);
+            dom.angleVal.innerText = Math.round(obj.angle || 0);
+            dom.elemColumn.value = obj.mappedColumn || '';
+            if (obj.type === 'i-text') {
+                document.getElementById('prop-text-content').style.display = 'block';
+                document.getElementById('prop-font').style.display = 'block';
+                document.getElementById('prop-font-size').style.display = 'block';
+                document.getElementById('prop-color-group').style.display = 'block';
+                dom.elemText.value = obj.text;
+                dom.elemFont.value = obj.fontFamily;
+                dom.elemFontSize.value = Math.round(obj.fontSize);
+                setUIFromFill(obj.fill);
+                updateAlignBtns(obj.textAlign);
+            } else if (obj.type === 'rect' || obj.type === 'circle' || obj.type === 'triangle' || obj.type === 'polygon' || obj.type === 'path') {
+                document.getElementById('prop-color-group').style.display = 'block';
+                setUIFromFill(obj.fill);
+            } else if (obj.type === 'image' || obj.customType === 'dynamicImage') {
+                document.getElementById('prop-mask').style.display = 'block';
+                dom.propClipping.style.display = 'block';
+                dom.elemMask.value = obj.maskType || 'none';
+            }
+            updateLayersList();
+        }
 
-    const zip = new JSZip();
-    const originalStates = captureOriginalStates();
+        function onSelectionCleared() {
+            dom.noSelectionMsg.style.display = 'block';
+            dom.propertiesPanel.style.display = 'none';
+            updateLayersList();
+        }
 
-    dom.progressModal.style.display = 'flex';
-    
-    for (let i = 0; i < excelData.length; i++) {
-        const row = excelData[i];
-        dom.progressText.innerText = `${i + 1} / ${excelData.length}`;
-        dom.progressBar.style.width = `${((i + 1) / excelData.length) * 100}%`;
-        
-        const dataUrl = await generateImageForRow(row);
-        const base64Data = dataUrl.replace(/^data:image\/jpeg;base64,/, "");
-        
-        // Naming: if there is a 'name' or 'اسم' column use it, else index
-        let fileName = `Card_${i+1}.jpg`;
-        if (row['الاسم']) fileName = `${row['الاسم']}.jpg`;
-        else if (row['Name']) fileName = `${row['Name']}.jpg`;
-        else if (row['الاسم الرباعي']) fileName = `${row['الاسم الرباعي']}.jpg`;
-        else if (columns[0]) fileName = `${row[columns[0]]}.jpg`; // Fallback to first column
+        dom.elemText.addEventListener('input', (e) => {
+            const obj = canvas.getActiveObject();
+            if(obj && obj.type === 'i-text') { obj.set('text', e.target.value); canvas.renderAll(); updateLayersList(); }
+        });
+        dom.elemMask.addEventListener('change', (e) => {
+            const obj = canvas.getActiveObject();
+            if(obj && (obj.type === 'image' || obj.customType === 'dynamicImage')) { 
+                obj.maskType = e.target.value; 
+                applyMaskToObject(obj);
+                canvas.renderAll(); 
+            }
+        });
+        function applyMaskToObject(obj) {
+            if (!obj.maskType || obj.maskType === 'none') {
+                obj.clipPath = null;
+                obj.set('dirty', true);
+                return;
+            }
+            const w = obj.width;
+            const h = obj.height;
+            if (obj.maskType === 'circle') {
+                const radius = Math.min(w, h) / 2;
+                obj.clipPath = new fabric.Circle({
+                    radius: radius, originX: 'center', originY: 'center', left: 0, top: 0, absolutePositioned: false
+                });
+            } else if (obj.maskType === 'roundRect') {
+                obj.clipPath = new fabric.Rect({
+                    width: w, height: h, rx: Math.min(w, h) * 0.15, ry: Math.min(w, h) * 0.15,
+                    originX: 'center', originY: 'center', left: 0, top: 0, absolutePositioned: false
+                });
+            }
+            obj.set('dirty', true);
+        }
 
-        zip.file(fileName, base64Data, {base64: true});
-        
-        // Small delay to allow UI to update
-        await new Promise(r => setTimeout(r, 10));
-    }
+        dom.elemColumn.addEventListener('change', (e) => {
+            const obj = canvas.getActiveObject();
+            if(obj) { 
+                obj.mappedColumn = e.target.value; 
+                if((obj.type === 'image' || obj.customType === 'dynamicImage') && !obj.placeholderBounds) {
+                    obj.placeholderBounds = { w: obj.width * obj.scaleX, h: obj.height * obj.scaleY };
+                }
+                updateLayersList(); 
+                if (currentPreviewIndex >= 0 && obj.mappedColumn) applyLivePreview(currentPreviewIndex);
+            }
+        });
+        dom.elemFont.addEventListener('change', (e) => {
+            const obj = canvas.getActiveObject();
+            if(obj && obj.type === 'i-text') { obj.set('fontFamily', e.target.value); canvas.renderAll(); }
+        });
+        dom.elemFontSize.addEventListener('input', (e) => {
+            const obj = canvas.getActiveObject();
+            if(obj && obj.type === 'i-text') { obj.set('fontSize', parseInt(e.target.value)); canvas.renderAll(); }
+        });
 
-    revertCanvasState(originalStates);
+        function setUIFromFill(fill) {
+            if (fill && typeof fill === 'object' && fill.type === 'linear') {
+                dom.fillType.value = 'gradient';
+                dom.elemColor.value = fill.colorStops[0].color;
+                dom.elemColor2.value = fill.colorStops[1].color;
+                dom.elemColor2.style.display = 'inline-block';
+            } else {
+                dom.fillType.value = 'solid';
+                dom.elemColor.value = (typeof fill === 'string') ? fill : '#000000';
+                dom.elemColor2.style.display = 'none';
+            }
+        }
 
-    dom.progressText.innerText = "جاري ضغط الملفات (ZIP)...";
-    zip.generateAsync({type:"blob"}).then(function(content) {
-        saveAs(content, "Cards_Export.zip");
-        dom.progressModal.style.display = 'none';
-        alert("تم التوليد بنجاح!");
-    });
-};
+        function updateObjectFill() {
+            const obj = canvas.getActiveObject();
+            if (!obj) return;
+            if (dom.fillType.value === 'gradient') {
+                const c1 = dom.elemColor.value;
+                const c2 = dom.elemColor2.value;
+                dom.elemColor2.style.display = 'inline-block';
+                const w = obj.width || 100;
+                const h = obj.height || 100;
+                const gradient = new fabric.Gradient({
+                    type: 'linear',
+                    gradientUnits: 'pixels',
+                    coords: { x1: 0, y1: 0, x2: w, y2: h },
+                    colorStops: [
+                        { offset: 0, color: c1 },
+                        { offset: 1, color: c2 }
+                    ]
+                });
+                obj.set('fill', gradient);
+            } else {
+                dom.elemColor2.style.display = 'none';
+                obj.set('fill', dom.elemColor.value);
+            }
+            canvas.renderAll();
+        }
 
-// --- Live Preview Logic ---
-function updateLivePreviewUI() {
-    dom.livePreviewText.innerText = `معاينة: السجل ${currentPreviewIndex + 1} من ${excelData.length}`;
-}
+        dom.fillType.addEventListener('change', updateObjectFill);
+        dom.elemColor.addEventListener('input', updateObjectFill);
+        dom.elemColor2.addEventListener('input', updateObjectFill);
 
-async function applyLivePreview(index) {
-    if(!canvas || excelData.length === 0) return;
-    const row = excelData[index];
-    await generateImageForRow(row);
-    canvas.renderAll();
-}
+        dom.elemOpacity.addEventListener('input', (e) => {
+            const obj = canvas.getActiveObject();
+            if(obj) { 
+                obj.set('opacity', parseFloat(e.target.value)); 
+                dom.opacityVal.innerText = Math.round(e.target.value * 100);
+                canvas.renderAll(); 
+            }
+        });
 
-dom.btnPrevLive.onclick = () => {
-    if (currentPreviewIndex > 0) {
-        currentPreviewIndex--;
-        updateLivePreviewUI();
-        applyLivePreview(currentPreviewIndex);
-    }
-};
+        dom.elemAngle.addEventListener('input', (e) => {
+            const obj = canvas.getActiveObject();
+            if(obj) { 
+                obj.set('angle', parseFloat(e.target.value)); 
+                dom.angleVal.innerText = e.target.value;
+                canvas.renderAll(); 
+            }
+        });
 
-dom.btnNextLive.onclick = () => {
-    if (currentPreviewIndex < excelData.length - 1) {
-        currentPreviewIndex++;
-        updateLivePreviewUI();
-        applyLivePreview(currentPreviewIndex);
-    }
-};
-:root {
-    --bg-dark: #121212;
-    --panel-bg: #1e1e1f;
-    --panel-light: #252526;
-    --accent: #d1d5db; /* رمادي فاتح */
-    --accent-hover: #e5e7eb;
-    --text-primary: #ffffff;
-    --text-secondary: #aaaaaa;
-    --border-color: #333333;
-    --danger: #ef4444;
-    --success: #10b981;
-}
+        dom.alignBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const align = btn.getAttribute('data-align');
+                const obj = canvas.getActiveObject();
+                if(obj && obj.type === 'i-text') {
+                    obj.set('textAlign', align);
+                    canvas.renderAll();
+                    updateAlignBtns(align);
+                }
+            });
+        });
+        function updateAlignBtns(align) {
+            dom.alignBtns.forEach(b => b.classList.remove('active'));
+            document.querySelector(`.btn-align[data-align="${align || 'left'}"]`)?.classList.add('active');
+        }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+        dom.btnBringForward.onclick = () => { const obj = canvas.getActiveObject(); if(obj){ canvas.bringForward(obj); updateLayersList();} };
+        dom.btnSendBackward.onclick = () => { const obj = canvas.getActiveObject(); if(obj){ canvas.sendBackwards(obj); updateLayersList();} };
+        dom.btnDeleteElem.onclick = () => { const obj = canvas.getActiveObject(); if(obj){ canvas.remove(obj); updateLayersList();} };
 
-body {
-    background: var(--bg-dark);
-    color: var(--text-primary);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, 'Cairo';
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
+        dom.btnMakeClippingMask.onclick = () => {
+            const activeObj = canvas.getActiveObject();
+            if (!activeObj || (activeObj.type !== 'image' && activeObj.customType !== 'dynamicImage')) return;
+            const objects = canvas.getObjects();
+            const index = objects.indexOf(activeObj);
+            if (index > 0) {
+                const maskShape = objects[index - 1];
+                maskShape.clone((cloned) => {
+                    cloned.absolutePositioned = true;
+                    activeObj.clipPath = cloned;
+                    activeObj.set('dirty', true);
+                    canvas.renderAll();
+                });
+            } else {
+                alert("لا يوجد شكل أسفل هذه الصورة لعمل ماسك. يرجى إضافة شكل وسحبه ليكون تحت الصورة مباشرة في قائمة الطبقات.");
+            }
+        };
 
-/* Topbar */
-.topbar {
-    height: 50px;
-    background: var(--panel-bg);
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 20px;
-    flex-shrink: 0;
-}
+        dom.btnRemoveClippingMask.onclick = () => {
+            const activeObj = canvas.getActiveObject();
+            if (activeObj) {
+                activeObj.clipPath = null;
+                activeObj.set('dirty', true);
+                canvas.renderAll();
+            }
+        };
 
-.logo {
-    color: var(--accent);
-    font-size: 18px;
-    font-weight: bold;
-}
+        dom.btnEyedropper.onclick = async () => {
+            if (!window.EyeDropper) {
+                alert("متصفحك لا يدعم القطارة (EyeDropper API)");
+                return;
+            }
+            const eyeDropper = new EyeDropper();
+            try {
+                const result = await eyeDropper.open();
+                dom.elemColor.value = result.sRGBHex;
+                const obj = canvas.getActiveObject();
+                if(obj) { obj.set('fill', result.sRGBHex); canvas.renderAll(); }
+            } catch (e) {
+                console.log('Eyedropper closed');
+            }
+        };
 
-.topbar-actions {
-    display: flex;
-    gap: 10px;
-}
+        dom.customFontUploader.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+            const fontName = 'Custom_' + Date.now();
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const fontFace = new FontFace(fontName, `url(${event.target.result})`);
+                fontFace.load().then((loadedFace) => {
+                    document.fonts.add(loadedFace);
+                    const option = document.createElement('option');
+                    option.value = fontName;
+                    option.text = fontName;
+                    dom.elemFont.add(option);
+                    dom.elemFont.value = fontName;
+                    const obj = canvas.getActiveObject();
+                    if(obj && obj.type === 'i-text') { obj.set('fontFamily', fontName); canvas.renderAll(); }
+                    alert('تم تحميل الخط بنجاح!');
+                }).catch(err => alert("فشل تحميل الخط"));
+            };
+            reader.readAsDataURL(file);
+        });
 
-/* Main Container */
-.main-container {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-}
+        function findLocalImage(val) {
+            if(!val) return null;
+            let nameStr = val.toString().trim();
+            if(localImages[nameStr]) return localImages[nameStr];
+            for(let key in localImages) {
+                if(key.toLowerCase() === nameStr.toLowerCase()) return localImages[key];
+            }
+            for(let key in localImages) {
+                let nameWithoutExt = key.split('.').slice(0, -1).join('.');
+                if(nameWithoutExt.toLowerCase() === nameStr.toLowerCase() || nameWithoutExt === nameStr) return localImages[key];
+            }
+            return null;
+        }
 
-/* Sidebars */
-.sidebar {
-    width: 320px;
-    background: var(--panel-bg);
-    border-left: 1px solid var(--border-color);
-    display: flex;
-    flex-direction: column;
-    padding: 15px;
-    gap: 15px;
-    flex-shrink: 0;
-    overflow-y: auto;
-}
+        async function generateImageForRow(row) {
+            return new Promise((resolve) => {
+                const objects = canvas.getObjects();
+                let imagesToLoad = 0;
+                let imagesLoaded = 0;
+                const checkResolve = () => {
+                    if(imagesLoaded === imagesToLoad) {
+                        canvas.renderAll();
+                        const dataURL = canvas.toDataURL({ format: 'jpeg', quality: 1, multiplier: 1/scaleFactor });
+                        resolve(dataURL);
+                    }
+                };
+                objects.forEach(obj => {
+                    if (obj.mappedColumn && row[obj.mappedColumn] !== undefined) {
+                        const val = row[obj.mappedColumn].toString();
+                        if (obj.type === 'i-text') {
+                            obj.set('text', val);
+                        } else if (obj.type === 'image' && (obj.customType === 'image' || obj.customType === 'dynamicImage')) {
+                            const imgDataUrl = findLocalImage(val);
+                            if (imgDataUrl) {
+                                imagesToLoad++;
+                                fabric.Image.fromURL(imgDataUrl, (newImg) => {
+                                    let boxW = obj.placeholderBounds ? obj.placeholderBounds.w : (obj.width * obj.scaleX);
+                                    let boxH = obj.placeholderBounds ? obj.placeholderBounds.h : (obj.height * obj.scaleY);
+                                    if(!obj.placeholderBounds) obj.placeholderBounds = { w: boxW, h: boxH };
+                                    let scale = Math.min(boxW / newImg.width, boxH / newImg.height);
+                                    obj.setElement(newImg.getElement());
+                                    obj.set({ width: newImg.width, height: newImg.height, scaleX: scale, scaleY: scale });
+                                    applyMaskToObject(obj);
+                                    imagesLoaded++;
+                                    checkResolve();
+                                });
+                            }
+                        }
+                    }
+                });
+                if (imagesToLoad === 0) checkResolve();
+            });
+        }
 
-.sidebar.left-sidebar {
-    border-left: none;
-    border-right: 1px solid var(--border-color);
-}
+        function captureOriginalStates() {
+            const states = [];
+            canvas.getObjects().forEach(obj => {
+                states.push({
+                    type: obj.type,
+                    text: obj.type === 'i-text' ? obj.text : null,
+                    element: obj.type === 'image' ? obj.getElement() : null,
+                    width: obj.width,
+                    height: obj.height,
+                    scaleX: obj.scaleX,
+                    scaleY: obj.scaleY,
+                    angle: obj.angle,
+                    maskType: obj.maskType
+                });
+            });
+            return states;
+        }
 
-/* Panels */
-.panel {
-    background: var(--panel-light);
-    border-radius: 8px;
-    padding: 15px;
-    border: 1px solid var(--border-color);
-}
+        function revertCanvasState(originalStates) {
+            const objects = canvas.getObjects();
+            objects.forEach((obj, i) => {
+                if (originalStates[i].type === 'i-text') {
+                    obj.set('text', originalStates[i].text);
+                } else if (originalStates[i].type === 'image') {
+                    obj.setElement(originalStates[i].element);
+                    obj.set({ width: originalStates[i].width, height: originalStates[i].height, scaleX: originalStates[i].scaleX, scaleY: originalStates[i].scaleY, angle: originalStates[i].angle });
+                    obj.maskType = originalStates[i].maskType;
+                    applyMaskToObject(obj);
+                }
+            });
+            canvas.renderAll();
+        }
 
-.panel h3 {
-    font-size: 14px;
-    margin-bottom: 15px;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 8px;
-}
+        dom.btnGenerate.onclick = async () => {
+            if(!canvas || excelData.length === 0) return alert("يجب رفع القالب وملف الإكسيل أولاً!");
+            canvas.discardActiveObject();
+            canvas.renderAll();
+            const zip = new JSZip();
+            const originalStates = captureOriginalStates();
+            dom.progressModal.style.display = 'flex';
+            for (let i = 0; i < excelData.length; i++) {
+                const row = excelData[i];
+                dom.progressText.innerText = `${i + 1} / ${excelData.length}`;
+                dom.progressBar.style.width = `${((i + 1) / excelData.length) * 100}%`;
+                const dataUrl = await generateImageForRow(row);
+                const base64Data = dataUrl.replace(/^data:image\/jpeg;base64,/, "");
+                let fileName = `Card_${i+1}.jpg`;
+                if (row['الاسم']) fileName = `${row['الاسم']}.jpg`;
+                else if (row['Name']) fileName = `${row['Name']}.jpg`;
+                else if (row['الاسم الرباعي']) fileName = `${row['الاسم الرباعي']}.jpg`;
+                else if (columns[0]) fileName = `${row[columns[0]]}.jpg`;
+                zip.file(fileName, base64Data, {base64: true});
+                await new Promise(r => setTimeout(r, 10));
+            }
+            revertCanvasState(originalStates);
+            dom.progressText.innerText = "جاري ضغط الملفات (ZIP)...";
+            zip.generateAsync({type:"blob"}).then(function(content) {
+                saveAs(content, "Cards_Export.zip");
+                dom.progressModal.style.display = 'none';
+                alert("تم التوليد بنجاح!");
+            });
+        };
 
-/* Forms & Inputs */
-label {
-    display: block;
-    font-size: 12px;
-    color: var(--text-secondary);
-    margin-bottom: 5px;
-}
+        function updateLivePreviewUI() {
+            dom.livePreviewText.innerText = `معاينة: السجل ${currentPreviewIndex + 1} من ${excelData.length}`;
+        }
 
-input[type="text"], input[type="number"], select, textarea {
-    width: 100%;
-    background: var(--bg-dark);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-    padding: 8px;
-    border-radius: 4px;
-    font-family: inherit;
-    outline: none;
-}
-input[type="color"] {
-    width: 100%;
-    height: 35px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 2px;
-    background: var(--bg-dark);
-    cursor: pointer;
-}
+        async function applyLivePreview(index) {
+            if(!canvas || excelData.length === 0) return;
+            const row = excelData[index];
+            await generateImageForRow(row);
+            canvas.renderAll();
+        }
 
-input[type="range"] {
-    width: 100%;
-    accent-color: var(--accent);
-}
+        dom.btnPrevLive.onclick = () => {
+            if (currentPreviewIndex > 0) {
+                currentPreviewIndex--;
+                updateLivePreviewUI();
+                applyLivePreview(currentPreviewIndex);
+            }
+        };
 
-/* Buttons */
-button {
-    font-family: inherit;
-    cursor: pointer;
-    border: none;
-    border-radius: 4px;
-    padding: 10px;
-    font-weight: bold;
-    transition: 0.2s;
-    outline: none;
-}
-
-.btn-primary {
-    background: var(--accent);
-    color: #000;
-}
-.btn-primary:hover { background: var(--accent-hover); }
-
-.btn-secondary {
-    background: transparent;
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-}
-.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
-
-.btn-danger {
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--danger);
-    border: 1px solid var(--danger);
-    width: 100%;
-}
-.btn-danger:hover { background: var(--danger); color: white; }
-
-.btn-icon {
-    background: transparent;
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    width: 35px;
-    height: 35px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-}
-.btn-icon:hover { background: var(--panel-light); border-color: var(--accent); color: var(--accent); }
-
-/* File Upload Wrappers */
-.upload-btn-wrapper {
-    position: relative;
-    overflow: hidden;
-    display: inline-block;
-    width: 100%;
-}
-.upload-btn-wrapper .btn-upload {
-    width: 100%;
-    background: var(--accent);
-    color: #000;
-    padding: 10px;
-}
-.upload-btn-wrapper.btn-secondary .btn-upload {
-    background: transparent;
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-}
-.upload-btn-wrapper input[type=file] {
-    font-size: 100px;
-    position: absolute;
-    left: 0;
-    top: 0;
-    opacity: 0;
-    cursor: pointer;
-    height: 100%;
-}
-
-.status-text {
-    font-size: 11px;
-    color: var(--success);
-    margin-top: 5px;
-}
-
-/* Tools Grid */
-.tools-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-}
-.tool-btn {
-    background: var(--bg-dark);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    padding: 10px 5px;
-    font-size: 11px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-}
-.tool-btn i { font-size: 16px; color: var(--accent); }
-.tool-btn:hover { background: var(--border-color); }
-
-/* Workspace */
-.workspace {
-    flex: 1;
-    background: #0a0a0a;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: auto;
-    position: relative;
-    padding: 40px;
-}
-
-.empty-state {
-    text-align: center;
-    color: #555;
-    pointer-events: none;
-}
-.empty-state i { font-size: 60px; margin-bottom: 20px; }
-
-.canvas-container {
-    box-shadow: 0 10px 50px rgba(0,0,0,0.8);
-    background: transparent;
-}
-
-/* Properties Grid */
-.prop-group { margin-bottom: 15px; }
-.prop-row { display: flex; gap: 10px; margin-bottom: 15px; }
-.prop-col { flex: 1; }
-
-.align-group { display: flex; gap: 5px; }
-.btn-align { flex: 1; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); }
-.btn-align.active { background: var(--accent); color: #000; border-color: var(--accent); }
-
-/* Layers List */
-.layers-list { display: flex; flex-direction: column; gap: 5px; }
-.layer-item {
-    background: var(--bg-dark);
-    border: 1px solid var(--border-color);
-    padding: 8px 10px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    cursor: pointer;
-    font-size: 12px;
-}
-.layer-item:hover { border-color: #555; }
-.layer-item.active { border-color: var(--accent); background: rgba(198, 172, 143, 0.1); }
-.layer-icon { color: var(--accent); width: 20px; }
-
-/* Modals */
-.modal {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.8);
-    z-index: 1000;
-    align-items: center; justify-content: center;
-}
-.modal-content {
-    background: var(--panel-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 20px;
-    width: 400px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-
-/* Progress Bar */
-.progress-bar-container {
-    width: 100%;
-    height: 10px;
-    background: var(--bg-dark);
-    border-radius: 5px;
-    margin: 20px 0 10px 0;
-    overflow: hidden;
-}
-.progress-bar {
-    height: 100%;
-    width: 0%;
-    background: var(--accent);
-    transition: 0.3s;
-}
+        dom.btnNextLive.onclick = () => {
+            if (currentPreviewIndex < excelData.length - 1) {
+                currentPreviewIndex++;
+                updateLivePreviewUI();
+                applyLivePreview(currentPreviewIndex);
+            }
+        };
+    </script>
+</body>
+</html>
