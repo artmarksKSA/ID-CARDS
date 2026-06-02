@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مصمم البطاقات الاحترافي - Pro Card Designer</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=Tajawal:wght@400;700&family=Almarai:wght@400;700&family=Amiri:wght@400;700&family=El+Messiri:wght@400;700&family=Lalezar&family=Changa:wght@400;700&family=Poppins:wght@400;700&family=Montserrat:wght@400;700&family=Roboto:wght@400;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="topbar">
+        <div class="logo"><i class="fas fa-paint-brush"></i> مصمم البطاقات الاحترافي</div>
+        <div class="topbar-actions" style="display: flex; align-items: center; gap: 15px;">
+            <div id="livePreviewControls" style="display: none; align-items: center; gap: 10px; background: #121212; padding: 5px 15px; border-radius: 20px; border: 1px solid #333;">
+                <button class="btn-icon" id="btnPrevLive" title="السجل السابق"><i class="fas fa-chevron-right"></i></button>
+                <span id="livePreviewText" style="font-size: 13px; font-weight: bold; color: #c6ac8f;">سجل 1 من X</span>
+                <button class="btn-icon" id="btnNextLive" title="السجل التالي"><i class="fas fa-chevron-left"></i></button>
+            </div>
+            <button id="btnGenerate" class="btn-primary"><i class="fas fa-download"></i> توليد وحفظ (ZIP)</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Left Sidebar: Tools & Data -->
+        <aside class="sidebar left-sidebar">
+            <div class="panel">
+                <h3><i class="fas fa-image"></i> 1. القالب والخلفية</h3>
+                <div class="upload-btn-wrapper">
+                    <button class="btn-upload"><i class="fas fa-upload"></i> رفع صورة القالب</button>
+                    <input type="file" id="bgUploader" accept="image/png, image/jpeg, image/jpg" />
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3><i class="fas fa-layer-group"></i> 2. إضافة عناصر</h3>
+                <div class="tools-grid">
+                    <button class="tool-btn" id="addTextBtn"><i class="fas fa-font"></i><br>نص</button>
+                    <button class="tool-btn" id="addImageBtn"><i class="fas fa-image"></i><br>صورة</button>
+                    <button class="tool-btn" id="addDynamicImageBtn"><i class="fas fa-portrait"></i><br>صورة متغيرة</button>
+                    <button class="tool-btn" id="addRectBtn"><i class="fas fa-square"></i><br>مربع</button>
+                    <button class="tool-btn" id="addCircleBtn"><i class="fas fa-circle"></i><br>دائرة</button>
+                    <button class="tool-btn" id="addTriangleBtn"><i class="fas fa-caret-up"></i><br>مثلث</button>
+                    <button class="tool-btn" id="addStarBtn"><i class="fas fa-star"></i><br>نجمة</button>
+                    <button class="tool-btn" id="addHeartBtn"><i class="fas fa-heart"></i><br>قلب</button>
+                    <button class="tool-btn" id="addArrowBtn"><i class="fas fa-long-arrow-alt-right"></i><br>سهم</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3><i class="fas fa-database"></i> 3. ربط البيانات</h3>
+                <label>ملف الإكسيل (Excel):</label>
+                <div class="upload-btn-wrapper">
+                    <button class="btn-upload btn-secondary"><i class="fas fa-file-excel"></i> رفع ملف Excel</button>
+                    <input type="file" id="excelUploader" accept=".xlsx, .xls, .csv" />
+                </div>
+                <div id="excelStatus" class="status-text"></div>
+
+                <label style="margin-top: 15px;">مجلد الصور (اختياري):</label>
+                <div class="upload-btn-wrapper">
+                    <button class="btn-upload btn-secondary"><i class="fas fa-folder-open"></i> رفع مجلد الصور</button>
+                    <input type="file" id="folderUploader" webkitdirectory directory multiple />
+                </div>
+                <div id="folderStatus" class="status-text"></div>
+            </div>
+        </aside>
+
+        <!-- Workspace (Canvas) -->
+        <main class="workspace" id="workspace">
+            <div id="emptyState" class="empty-state">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>قم برفع صورة القالب للبدء بالتصميم</p>
+            </div>
+            <div id="canvasContainer" class="canvas-container" style="display: none;">
+                <canvas id="canvas"></canvas>
+            </div>
+        </main>
+
+        <!-- Right Sidebar: Properties -->
+        <aside class="sidebar right-sidebar">
+            <div id="noSelectionMsg" class="panel">
+                <p style="text-align:center; color:#888; font-size: 14px;">اختر عنصراً لتعديل خصائصه</p>
+            </div>
+            
+            <div id="propertiesPanel" class="panel" style="display: none;">
+                <h3><i class="fas fa-sliders-h"></i> خصائص العنصر</h3>
+                
+                <div class="prop-group" id="prop-text-content">
+                    <label>النص (محتوى ثابت):</label>
+                    <textarea id="elemText" rows="2"></textarea>
+                </div>
+
+                <div class="prop-group" id="prop-mask" style="display: none;">
+                    <label>شكل القص السريع (Mask):</label>
+                    <select id="elemMask">
+                        <option value="none">بدون (مستطيل)</option>
+                        <option value="circle">قص دائري</option>
+                        <option value="roundRect">حواف دائرية</option>
+                    </select>
+                </div>
+
+                <div class="prop-group" id="prop-clipping" style="display: none;">
+                    <label>ماسك متقدم (Clipping Mask):</label>
+                    <div style="font-size: 11px; color:#aaa; margin-bottom:5px;">ارسم شكلاً واجعله أسفل الصورة، ثم اضغط هنا.</div>
+                    <button class="btn-secondary" id="btnMakeClippingMask" style="font-size: 11px; margin-bottom:5px; width:100%;">📎 ربط ماسك مع الطبقة بالأسفل</button>
+                    <button class="btn-danger" id="btnRemoveClippingMask" style="font-size: 11px; width:100%;">❌ إزالة الماسك المتقدم</button>
+                </div>
+
+                <div class="prop-group">
+                    <label>ربط بعمود (متغير):</label>
+                    <select id="elemColumn">
+                        <option value="">-- بدون ربط (ثابت) --</option>
+                        <!-- Columns will be added here -->
+                    </select>
+                </div>
+                
+                <div class="prop-group" id="prop-font">
+                    <label>الخط (Font):</label>
+                    <select id="elemFont">
+                        <option value="Cairo">Cairo</option>
+                        <option value="Tajawal">Tajawal</option>
+                        <option value="Almarai">Almarai</option>
+                        <option value="Amiri">Amiri</option>
+                        <option value="El Messiri">El Messiri</option>
+                        <option value="Lalezar">Lalezar</option>
+                        <option value="Changa">Changa</option>
+                        <option value="Poppins">Poppins</option>
+                        <option value="Montserrat">Montserrat</option>
+                        <option value="Roboto">Roboto</option>
+                        <option value="Playfair Display">Playfair Display</option>
+                        <option value="Arial">Arial</option>
+                    </select>
+                    <div style="margin-top: 5px;">
+                        <input type="file" id="customFontUploader" accept=".ttf,.otf,.woff" style="display:none;" />
+                        <button class="btn-secondary" onclick="document.getElementById('customFontUploader').click()" style="width: 100%; font-size: 11px;">رفع خط مخصص من الجهاز</button>
+                    </div>
+                </div>
+
+                <div class="prop-group" id="prop-font-size" style="display: none;">
+                    <label>الحجم:</label>
+                    <input type="number" id="elemFontSize" min="8" max="500">
+                </div>
+
+                <div class="prop-group" id="prop-color-group" style="display: none;">
+                    <label>اللون والتعبئة:</label>
+                    <select id="fillType" style="margin-bottom: 5px; font-size: 12px;">
+                        <option value="solid">لون عادي (Solid)</option>
+                        <option value="gradient">تدرج لوني (Gradient)</option>
+                    </select>
+                    <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 5px;">
+                        <input type="color" id="elemColor" title="اللون 1">
+                        <input type="color" id="elemColor2" title="اللون 2 للتدرج" style="display: none;">
+                        <button id="btnEyedropper" class="btn-icon" title="أداة القطارة (Eyedropper)"><i class="fas fa-eye-dropper"></i></button>
+                    </div>
+                </div>
+
+                <div class="prop-row">
+                    <div class="prop-col">
+                        <label>المحاذاة:</label>
+                        <div class="align-group">
+                            <button class="btn-align" data-align="right"><i class="fas fa-align-right"></i></button>
+                            <button class="btn-align" data-align="center"><i class="fas fa-align-center"></i></button>
+                            <button class="btn-align" data-align="left"><i class="fas fa-align-left"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="prop-group">
+                    <label>التدوير (Rotation): <span id="angleVal">0</span>°</label>
+                    <input type="range" id="elemAngle" min="0" max="360" value="0">
+                </div>
+
+                <div class="prop-group">
+                    <label>الشفافية (Opacity): <span id="opacityVal">100</span>%</label>
+                    <input type="range" id="elemOpacity" min="0" max="1" step="0.01" value="1">
+                </div>
+                
+                <hr style="border: 1px solid #333; margin: 15px 0;">
+                
+                <div class="prop-group">
+                    <label>ترتيب الطبقة:</label>
+                    <div style="display: flex; gap: 5px;">
+                        <button class="btn-secondary" id="btnBringForward" style="flex:1;"><i class="fas fa-angle-up"></i> للأمام</button>
+                        <button class="btn-secondary" id="btnSendBackward" style="flex:1;"><i class="fas fa-angle-down"></i> للخلف</button>
+                    </div>
+                </div>
+                
+                <button id="btnDeleteElem" class="btn-danger" style="margin-top: 10px;"><i class="fas fa-trash"></i> حذف العنصر</button>
+            </div>
+
+            <div class="panel" style="flex: 1; display: flex; flex-direction: column; min-height: 200px;">
+                <h3><i class="fas fa-bars"></i> قائمة الطبقات</h3>
+                <div id="layersList" class="layers-list" style="overflow-y: auto; flex: 1; padding-right: 5px;">
+                    <!-- Layers will be populated here -->
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Modal: Generation Progress -->
+    <div id="progressModal" class="modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-cogs"></i> جاري توليد البطاقات...</h3>
+            <div class="progress-bar-container">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <p id="progressText">0 / 0</p>
+            <p style="font-size: 12px; color: #888; margin-top: 10px;">يرجى عدم إغلاق هذه النافذة حتى يكتمل التوليد.</p>
+        </div>
+    </div>
+    
+    <!-- Modals Removed -> Live Preview Implemented -->
+
+    <script src="script.js"></script>
+</body>
+</html>
