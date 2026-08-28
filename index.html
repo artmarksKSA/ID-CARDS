@@ -1,522 +1,410 @@
-
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مصمم البطاقات الاحترافي - Pro Card Designer</title>
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=Tajawal:wght@400;700&family=Almarai:wght@400;700&family=Amiri:wght@400;700&family=El+Messiri:wght@400;700&family=Lalezar&family=Changa:wght@400;700&family=Poppins:wght@400;700&family=Montserrat:wght@400;700&family=Roboto:wght@400;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Libraries -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5">
+    <meta name="theme-color" content="#0b0c0e">
+    <link rel="icon" href="assets/favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="assets/favicon.png">
+    <meta property="og:image" content="assets/logo-200.png">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="مصمم البطاقات الاحترافي — صمّم بطاقة بقالبك واربطها بملف Excel وولّد مئات البطاقات دفعة واحدة.">
+    <title>مصمم البطاقات الاحترافي — ArtMark</title>
+
+    <!-- خطوط الواجهة + خطوط البطاقات (نفس القائمة الأصلية) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Cairo:wght@400;700&family=Tajawal:wght@400;700&family=Almarai:wght@400;700&family=Amiri:wght@400;700&family=El+Messiri:wght@400;700&family=Lalezar&family=Changa:wght@400;700&family=Poppins:wght@400;700&family=Montserrat:wght@400;700&family=Roboto:wght@400;700&family=Playfair+Display:wght@400;700&display=swap">
+
+    <link rel="stylesheet" href="css/theme.css">
+
+    <!-- المكتبات: نفس الإصدارات الأصلية، لم يتغيّر منها شيء -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-
-    <style>
-        :root {
-            --bg-dark: #121212;
-            --panel-bg: #1e1e1f;
-            --panel-light: #252526;
-            --accent: #d1d5db;
-            --accent-hover: #e5e7eb;
-            --text-primary: #ffffff;
-            --text-secondary: #aaaaaa;
-            --border-color: #333333;
-            --danger: #ef4444;
-            --success: #10b981;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            background: var(--bg-dark);
-            color: var(--text-primary);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, 'Cairo';
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .topbar {
-            height: 50px;
-            background: var(--panel-bg);
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            flex-shrink: 0;
-        }
-
-        .logo {
-            color: var(--accent);
-            font-size: 18px;
-            font-weight: bold;
-        }
-
-        .topbar-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .main-container {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-        }
-
-        .sidebar {
-            width: 320px;
-            background: var(--panel-bg);
-            border-left: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            padding: 15px;
-            gap: 15px;
-            flex-shrink: 0;
-            overflow-y: auto;
-        }
-
-        .sidebar.left-sidebar {
-            border-left: none;
-            border-right: 1px solid var(--border-color);
-        }
-
-        .panel {
-            background: var(--panel-light);
-            border-radius: 8px;
-            padding: 15px;
-            border: 1px solid var(--border-color);
-        }
-
-        .panel h3 {
-            font-size: 14px;
-            margin-bottom: 15px;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 8px;
-        }
-
-        label {
-            display: block;
-            font-size: 12px;
-            color: var(--text-secondary);
-            margin-bottom: 5px;
-        }
-
-        input[type="text"], input[type="number"], select, textarea {
-            width: 100%;
-            background: var(--bg-dark);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-            padding: 8px;
-            border-radius: 4px;
-            font-family: inherit;
-            outline: none;
-        }
-        input[type="color"] {
-            width: 100%;
-            height: 35px;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 2px;
-            background: var(--bg-dark);
-            cursor: pointer;
-        }
-
-        input[type="range"] {
-            width: 100%;
-            accent-color: var(--accent);
-        }
-
-        button {
-            font-family: inherit;
-            cursor: pointer;
-            border: none;
-            border-radius: 4px;
-            padding: 10px;
-            font-weight: bold;
-            transition: 0.2s;
-            outline: none;
-        }
-
-        .btn-primary {
-            background: var(--accent);
-            color: #000;
-        }
-        .btn-primary:hover { background: var(--accent-hover); }
-
-        .btn-secondary {
-            background: transparent;
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-        .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
-
-        .btn-danger {
-            background: rgba(239, 68, 68, 0.1);
-            color: var(--danger);
-            border: 1px solid var(--danger);
-            width: 100%;
-        }
-        .btn-danger:hover { background: var(--danger); color: white; }
-
-        .btn-icon {
-            background: transparent;
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            width: 35px;
-            height: 35px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 4px;
-        }
-        .btn-icon:hover { background: var(--panel-light); border-color: var(--accent); color: var(--accent); }
-
-        .upload-btn-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-            width: 100%;
-        }
-        .upload-btn-wrapper .btn-upload {
-            width: 100%;
-            background: var(--accent);
-            color: #000;
-            padding: 10px;
-        }
-        .upload-btn-wrapper.btn-secondary .btn-upload {
-            background: transparent;
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-        .upload-btn-wrapper input[type=file] {
-            font-size: 100px;
-            position: absolute;
-            left: 0;
-            top: 0;
-            opacity: 0;
-            cursor: pointer;
-            height: 100%;
-        }
-
-        .status-text {
-            font-size: 11px;
-            color: var(--success);
-            margin-top: 5px;
-        }
-
-        .tools-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-        }
-        .tool-btn {
-            background: var(--bg-dark);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            padding: 10px 5px;
-            font-size: 11px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 5px;
-        }
-        .tool-btn i { font-size: 16px; color: var(--accent); }
-        .tool-btn:hover { background: var(--border-color); }
-
-        .workspace {
-            flex: 1;
-            background: #0a0a0a;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: auto;
-            position: relative;
-            padding: 40px;
-        }
-
-        .empty-state {
-            text-align: center;
-            color: #555;
-            pointer-events: none;
-        }
-        .empty-state i { font-size: 60px; margin-bottom: 20px; }
-
-        .canvas-container {
-            box-shadow: 0 10px 50px rgba(0,0,0,0.8);
-            background: transparent;
-        }
-
-        .prop-group { margin-bottom: 15px; }
-        .prop-row { display: flex; gap: 10px; margin-bottom: 15px; }
-        .prop-col { flex: 1; }
-
-        .align-group { display: flex; gap: 5px; }
-        .btn-align { flex: 1; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); }
-        .btn-align.active { background: var(--accent); color: #000; border-color: var(--accent); }
-
-        .layers-list { display: flex; flex-direction: column; gap: 5px; }
-        .layer-item {
-            background: var(--bg-dark);
-            border: 1px solid var(--border-color);
-            padding: 8px 10px;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        .layer-item:hover { border-color: #555; }
-        .layer-item.active { border-color: var(--accent); background: rgba(198, 172, 143, 0.1); }
-        .layer-icon { color: var(--accent); width: 20px; }
-
-        .modal {
-            display: none;
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.8);
-            z-index: 1000;
-            align-items: center; justify-content: center;
-        }
-        .modal-content {
-            background: var(--panel-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            padding: 20px;
-            width: 400px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-
-        .progress-bar-container {
-            width: 100%;
-            height: 10px;
-            background: var(--bg-dark);
-            border-radius: 5px;
-            margin: 20px 0 10px 0;
-            overflow: hidden;
-        }
-        .progress-bar {
-            height: 100%;
-            width: 0%;
-            background: var(--accent);
-            transition: 0.3s;
-        }
-    </style>
 </head>
-<body>
+<body data-view="tools">
 
-    <div class="topbar">
-        <div class="logo"><i class="fas fa-paint-brush"></i> مصمم البطاقات الاحترافي</div>
-        <div class="topbar-actions" style="display: flex; align-items: center; gap: 15px;">
-            <div id="livePreviewControls" style="display: none; align-items: center; gap: 10px; background: #121212; padding: 5px 15px; border-radius: 20px; border: 1px solid #333;">
-                <button class="btn-icon" id="btnPrevLive" title="السجل السابق"><i class="fas fa-chevron-right"></i></button>
-                <span id="livePreviewText" style="font-size: 13px; font-weight: bold; color: #c6ac8f;">سجل 1 من X</span>
-                <button class="btn-icon" id="btnNextLive" title="السجل التالي"><i class="fas fa-chevron-left"></i></button>
-            </div>
-            <button id="btnGenerate" class="btn-primary"><i class="fas fa-download"></i> توليد وحفظ (ZIP)</button>
+<svg xmlns="http://www.w3.org/2000/svg" class="icon-sprite" aria-hidden="true" focusable="false">
+<defs>
+  <symbol id="i-paintbrush" viewBox="0 0 24 24"><path d="m14.622 17.897-10.68-2.913" /> <path d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z" /> <path d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15" /></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> <path d="m7 10 5 5 5-5" /></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+  <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol>
+  <symbol id="i-chevron-up" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6" /></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 3v12" /> <path d="m17 8-5-5-5 5" /> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /> <circle cx="9" cy="9" r="2" /> <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></symbol>
+  <symbol id="i-images" viewBox="0 0 24 24"><path d="m22 11-1.296-1.296a2.4 2.4 0 0 0-3.408 0L11 16" /> <path d="M4 8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2" /> <circle cx="13" cy="7" r="1" fill="currentColor" /> <rect x="8" y="2" width="14" height="14" rx="2" /></symbol>
+  <symbol id="i-layers-3" viewBox="0 0 24 24"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" /> <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" /> <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" /></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" /> <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" /> <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" /></symbol>
+  <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3" /> <path d="M3 5V19A9 3 0 0 0 21 19V5" /> <path d="M3 12A9 3 0 0 0 21 12" /></symbol>
+  <symbol id="i-file-spreadsheet" viewBox="0 0 24 24"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" /> <path d="M14 2v5a1 1 0 0 0 1 1h5" /> <path d="M8 13h2" /> <path d="M14 13h2" /> <path d="M8 17h2" /> <path d="M14 17h2" /></symbol>
+  <symbol id="i-folder-open" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" /></symbol>
+  <symbol id="i-type" viewBox="0 0 24 24"><path d="M12 4v16" /> <path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2" /> <path d="M9 20h6" /></symbol>
+  <symbol id="i-contact" viewBox="0 0 24 24"><path d="M16 2v2" /> <path d="M7 21v-2a2 2 0 012-2h6a2 2 0 012 2v2" /> <path d="M8 2v2" /> <circle cx="12" cy="10" r="3" /> <rect x="3" y="3" width="18" height="18" rx="2" /></symbol>
+  <symbol id="i-square" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /></symbol>
+  <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /></symbol>
+  <symbol id="i-triangle" viewBox="0 0 24 24"><path d="M13.73 4a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5" /></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14" /> <path d="m12 5 7 7-7 7" /></symbol>
+  <symbol id="i-shapes" viewBox="0 0 24 24"><path d="M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.198-.043L16.3 8.9a.7.7 0 0 1-.572 1.1Z" /> <rect x="3" y="14" width="7" height="7" rx="1" /> <circle cx="17.5" cy="17.5" r="3.5" /></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" /> <path d="M20 2v4" /> <path d="M22 4h-4" /> <circle cx="4" cy="20" r="2" /></symbol>
+  <symbol id="i-sliders-horizontal" viewBox="0 0 24 24"><path d="M10 5H3" /> <path d="M12 19H3" /> <path d="M14 3v4" /> <path d="M16 17v4" /> <path d="M21 12h-9" /> <path d="M21 19h-5" /> <path d="M21 5h-7" /> <path d="M8 10v4" /> <path d="M8 12H3" /></symbol>
+  <symbol id="i-pipette" viewBox="0 0 24 24"><path d="m12 9-8.414 8.414A2 2 0 0 0 3 18.828v1.344a2 2 0 0 1-.586 1.414A2 2 0 0 1 3.828 21h1.344a2 2 0 0 0 1.414-.586L15 12" /> <path d="m18 9 .4.4a1 1 0 1 1-3 3l-3.8-3.8a1 1 0 1 1 3-3l.4.4 3.4-3.4a1 1 0 1 1 3 3z" /> <path d="m2 22 .414-.414" /></symbol>
+  <symbol id="i-trash-2" viewBox="0 0 24 24"><path d="M10 11v6" /> <path d="M14 11v6" /> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></symbol>
+  <symbol id="i-grip-vertical" viewBox="0 0 24 24"><circle cx="9" cy="12" r="1" /> <circle cx="9" cy="5" r="1" /> <circle cx="9" cy="19" r="1" /> <circle cx="15" cy="12" r="1" /> <circle cx="15" cy="5" r="1" /> <circle cx="15" cy="19" r="1" /></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /> <circle cx="12" cy="12" r="3" /></symbol>
+  <symbol id="i-circle-check-big" viewBox="0 0 24 24"><path d="M21.801 10A10 10 0 1 1 17 3.335" /> <path d="m9 11 3 3L22 4" /></symbol>
+  <symbol id="i-loader-circle" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></symbol>
+  <symbol id="i-cloud-upload" viewBox="0 0 24 24"><path d="M12 13v8" /> <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" /> <path d="m8 17 4-4 4 4" /></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /> <circle cx="12" cy="12" r="3" /></symbol>
+  <symbol id="i-mouse-pointer-2" viewBox="0 0 24 24"><path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z" /></symbol>
+  <symbol id="i-smartphone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /> <path d="M12 18h.01" /></symbol>
+  <symbol id="i-file-archive" viewBox="0 0 24 24"><path d="M13.659 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v11.5" /> <path d="M14 2v5a1 1 0 0 0 1 1h5" /> <path d="M8 12v-1" /> <path d="M8 18v-2" /> <path d="M8 7V6" /> <circle cx="8" cy="20" r="2" /></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18" /> <path d="m6 6 12 12" /></symbol>
+  <symbol id="i-alert-triangle" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /> <path d="M12 9v4" /> <path d="M12 17h.01" /></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /> <path d="M12 16v-4" /> <path d="M12 8h.01" /></symbol>
+  <symbol id="i-maximize" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3" /> <path d="M21 8V5a2 2 0 0 0-2-2h-3" /> <path d="M3 16v3a2 2 0 0 0 2 2h3" /> <path d="M16 21h3a2 2 0 0 0 2-2v-3" /></symbol>
+  <symbol id="i-zoom-in" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /> <line x1="21" x2="16.65" y1="21" y2="16.65" /> <line x1="11" x2="11" y1="8" y2="14" /> <line x1="8" x2="14" y1="11" y2="11" /></symbol>
+  <symbol id="i-zoom-out" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /> <line x1="21" x2="16.65" y1="21" y2="16.65" /> <line x1="8" x2="14" y1="11" y2="11" /></symbol>
+  <symbol id="i-align-right" viewBox="0 0 24 24"><path d="M21 5H3" /> <path d="M21 12H9" /> <path d="M21 19H7" /></symbol>
+  <symbol id="i-align-center" viewBox="0 0 24 24"><path d="M21 5H3" /> <path d="M17 12H7" /> <path d="M19 19H5" /></symbol>
+  <symbol id="i-align-left" viewBox="0 0 24 24"><path d="M21 5H3" /> <path d="M15 12H3" /> <path d="M17 19H3" /></symbol>
+</defs>
+</svg>
+
+<!-- ============ الشريط العلوي ============ -->
+<header class="topbar">
+    <div class="brand">
+        <span class="brand__mark">
+            <img src="assets/logo-200.png" alt="شعار أرتـم" class="brand__logo">
+            <span class="brand__logo brand__logo--tint" aria-hidden="true"></span>
+        </span>
+        <span class="brand__text">
+            <span class="brand__title">مصمم البطاقات الاحترافي</span>
+            <span class="brand__sub">ArtMark · Card Studio</span>
+        </span>
+    </div>
+
+    <div class="topbar-actions">
+        <div id="livePreviewControls" style="display: none;">
+            <button class="btn-icon" id="btnPrevLive" title="السجل السابق" aria-label="السجل السابق">
+                <svg class="ic" aria-hidden="true"><use href="#i-chevron-right"></use></svg>
+            </button>
+            <span id="livePreviewText">سجل 1 من X</span>
+            <button class="btn-icon" id="btnNextLive" title="السجل التالي" aria-label="السجل التالي">
+                <svg class="ic" aria-hidden="true"><use href="#i-chevron-left"></use></svg>
+            </button>
         </div>
+        <button id="btnPalette" class="palette-btn" title="لوحة الألوان" aria-label="تبديل لوحة الألوان" aria-haspopup="true">
+            <span class="palette-btn__sw"></span>
+        </button>
+        <div class="palette-menu" id="paletteMenu" role="menu" aria-label="اختيار لوحة الألوان"></div>
+        <button id="btnGenerate" class="btn-primary">
+            <svg class="ic" aria-hidden="true"><use href="#i-download"></use></svg>
+            <span class="btn-label">توليد وحفظ (ZIP)</span>
+        </button>
     </div>
+</header>
 
-    <div class="main-container">
-        <!-- Left Sidebar: Tools & Data -->
-        <aside class="sidebar left-sidebar">
-            <div class="panel">
-                <h3><i class="fas fa-image"></i> 1. القالب والخلفية</h3>
-                <div class="upload-btn-wrapper">
-                    <button class="btn-upload"><i class="fas fa-upload"></i> رفع صورة القالب</button>
-                    <input type="file" id="bgUploader" accept="image/png, image/jpeg, image/jpg" />
-                </div>
+<!-- ============ الجسم ============ -->
+<div class="main-container">
+
+    <!-- لوحة ١·٢·٣ -->
+    <aside class="sidebar left-sidebar" aria-label="أدوات التصميم والبيانات">
+
+        <section class="panel">
+            <h3>
+                <svg class="ic" aria-hidden="true"><use href="#i-image"></use></svg>
+                القالب والخلفية
+                <span class="step">STEP 1</span>
+            </h3>
+            <div class="upload-btn-wrapper">
+                <button class="btn-upload">
+                    <svg class="ic" aria-hidden="true"><use href="#i-upload"></use></svg>
+                    رفع صورة القالب
+                </button>
+                <input type="file" id="bgUploader" accept="image/png, image/jpeg, image/jpg" />
             </div>
+        </section>
 
-            <div class="panel">
-                <h3><i class="fas fa-layer-group"></i> 2. إضافة عناصر</h3>
-                <div class="tools-grid">
-                    <button class="tool-btn" id="addTextBtn"><i class="fas fa-font"></i><br>نص</button>
-                    <button class="tool-btn" id="addImageBtn"><i class="fas fa-image"></i><br>صورة</button>
-                    <button class="tool-btn" id="addDynamicImageBtn"><i class="fas fa-portrait"></i><br>صورة متغيرة</button>
-                    <button class="tool-btn" id="addRectBtn"><i class="fas fa-square"></i><br>مربع</button>
-                    <button class="tool-btn" id="addCircleBtn"><i class="fas fa-circle"></i><br>دائرة</button>
-                    <button class="tool-btn" id="addTriangleBtn"><i class="fas fa-caret-up"></i><br>مثلث</button>
-                    <button class="tool-btn" id="addStarBtn"><i class="fas fa-star"></i><br>نجمة</button>
-                    <button class="tool-btn" id="addHeartBtn"><i class="fas fa-heart"></i><br>قلب</button>
-                    <button class="tool-btn" id="addArrowBtn"><i class="fas fa-long-arrow-alt-right"></i><br>سهم</button>
-                </div>
+        <section class="panel">
+            <h3>
+                <svg class="ic" aria-hidden="true"><use href="#i-layers-3"></use></svg>
+                إضافة عناصر
+                <span class="step">STEP 2</span>
+            </h3>
+            <div class="tools-grid">
+                <button class="tool-btn" id="addTextBtn"><svg class="ic" aria-hidden="true"><use href="#i-type"></use></svg><span class="tool-btn__label">نص</span></button>
+                <button class="tool-btn" id="addImageBtn"><svg class="ic" aria-hidden="true"><use href="#i-image"></use></svg><span class="tool-btn__label">صورة</span></button>
+                <button class="tool-btn" id="addDynamicImageBtn"><svg class="ic" aria-hidden="true"><use href="#i-contact"></use></svg><span class="tool-btn__label">صورة متغيرة</span></button>
+                <button class="tool-btn" id="addRectBtn"><svg class="ic" aria-hidden="true"><use href="#i-square"></use></svg><span class="tool-btn__label">مربع</span></button>
+                <button class="tool-btn" id="addCircleBtn"><svg class="ic ic--fill" aria-hidden="true"><use href="#i-circle"></use></svg><span class="tool-btn__label">دائرة</span></button>
+                <button class="tool-btn" id="addTriangleBtn"><svg class="ic" aria-hidden="true"><use href="#i-triangle"></use></svg><span class="tool-btn__label">مثلث</span></button>
+                <button class="tool-btn" id="addStarBtn"><svg class="ic ic--fill" aria-hidden="true"><use href="#i-star"></use></svg><span class="tool-btn__label">نجمة</span></button>
+                <button class="tool-btn" id="addHeartBtn"><svg class="ic ic--fill" aria-hidden="true"><use href="#i-heart"></use></svg><span class="tool-btn__label">قلب</span></button>
+                <button class="tool-btn" id="addArrowBtn"><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"></use></svg><span class="tool-btn__label">سهم</span></button>
             </div>
+        </section>
 
-            <div class="panel">
-                <h3><i class="fas fa-database"></i> 3. ربط البيانات</h3>
-                <label>ملف الإكسيل (Excel):</label>
-                <div class="upload-btn-wrapper">
-                    <button class="btn-upload btn-secondary"><i class="fas fa-file-excel"></i> رفع ملف Excel</button>
-                    <input type="file" id="excelUploader" accept=".xlsx, .xls, .csv" />
-                </div>
-                <div id="excelStatus" class="status-text"></div>
+        <section class="panel">
+            <h3>
+                <svg class="ic" aria-hidden="true"><use href="#i-database"></use></svg>
+                ربط البيانات
+                <span class="step">STEP 3</span>
+            </h3>
 
-                <label style="margin-top: 15px;">مجلد الصور (اختياري):</label>
-                <div class="upload-btn-wrapper">
-                    <button class="btn-upload btn-secondary"><i class="fas fa-folder-open"></i> رفع مجلد الصور</button>
-                    <input type="file" id="folderUploader" webkitdirectory directory multiple />
-                </div>
-                <div id="folderStatus" class="status-text"></div>
+            <label for="excelUploader">ملف الإكسيل (Excel / CSV)</label>
+            <div class="upload-btn-wrapper">
+                <button class="btn-upload btn-secondary">
+                    <svg class="ic" aria-hidden="true"><use href="#i-file-spreadsheet"></use></svg>
+                    رفع ملف Excel
+                </button>
+                <input type="file" id="excelUploader" accept=".xlsx, .xls, .csv" />
             </div>
-        </aside>
+            <div id="excelStatus" class="status-text"></div>
 
-        <!-- Workspace (Canvas) -->
-        <main class="workspace" id="workspace">
-            <div id="emptyState" class="empty-state">
-                <i class="fas fa-cloud-upload-alt"></i>
-                <p>قم برفع صورة القالب للبدء بالتصميم</p>
+            <label for="folderUploader" class="label-gap">مجلد الصور (اختياري)</label>
+            <div class="upload-btn-wrapper">
+                <button class="btn-upload btn-secondary">
+                    <svg class="ic" aria-hidden="true"><use href="#i-folder-open"></use></svg>
+                    رفع مجلد الصور
+                </button>
+                <input type="file" id="folderUploader" webkitdirectory directory multiple />
             </div>
-            <div id="canvasContainer" class="canvas-container" style="display: none;">
-                <canvas id="canvas"></canvas>
-            </div>
-        </main>
+            <div id="folderStatus" class="status-text"></div>
+        </section>
+    </aside>
 
-        <!-- Right Sidebar: Properties -->
-        <aside class="sidebar right-sidebar">
-            <div id="noSelectionMsg" class="panel">
-                <p style="text-align:center; color:#888; font-size: 14px;">اختر عنصراً لتعديل خصائصه</p>
-            </div>
-            
-            <div id="propertiesPanel" class="panel" style="display: none;">
-                <h3><i class="fas fa-sliders-h"></i> خصائص العنصر</h3>
-                
-                <div class="prop-group" id="prop-text-content">
-                    <label>النص (محتوى ثابت):</label>
-                    <textarea id="elemText" rows="2"></textarea>
-                </div>
-
-                <div class="prop-group" id="prop-mask" style="display: none;">
-                    <label>شكل القص السريع (Mask):</label>
-                    <select id="elemMask">
-                        <option value="none">بدون (مستطيل)</option>
-                        <option value="circle">قص دائري</option>
-                        <option value="roundRect">حواف دائرية</option>
-                    </select>
-                </div>
-
-                <div class="prop-group" id="prop-clipping" style="display: none;">
-                    <label>ماسك متقدم (Clipping Mask):</label>
-                    <div style="font-size: 11px; color:#aaa; margin-bottom:5px;">ارسم شكلاً واجعله أسفل الصورة، ثم اضغط هنا.</div>
-                    <button class="btn-secondary" id="btnMakeClippingMask" style="font-size: 11px; margin-bottom:5px; width:100%;">📎 ربط ماسك مع الطبقة بالأسفل</button>
-                    <button class="btn-danger" id="btnRemoveClippingMask" style="font-size: 11px; width:100%;">❌ إزالة الماسك المتقدم</button>
-                </div>
-
-                <div class="prop-group">
-                    <label>ربط بعمود (متغير):</label>
-                    <select id="elemColumn">
-                        <option value="">-- بدون ربط (ثابت) --</option>
-                    </select>
-                </div>
-                
-                <div class="prop-group" id="prop-font">
-                    <label>الخط (Font):</label>
-                    <select id="elemFont">
-                        <option value="Cairo">Cairo</option>
-                        <option value="Tajawal">Tajawal</option>
-                        <option value="Almarai">Almarai</option>
-                        <option value="Amiri">Amiri</option>
-                        <option value="El Messiri">El Messiri</option>
-                        <option value="Lalezar">Lalezar</option>
-                        <option value="Changa">Changa</option>
-                        <option value="Poppins">Poppins</option>
-                        <option value="Montserrat">Montserrat</option>
-                        <option value="Roboto">Roboto</option>
-                        <option value="Playfair Display">Playfair Display</option>
-                        <option value="Arial">Arial</option>
-                    </select>
-                    <div style="margin-top: 5px;">
-                        <input type="file" id="customFontUploader" accept=".ttf,.otf,.woff" style="display:none;" />
-                        <button class="btn-secondary" onclick="document.getElementById('customFontUploader').click()" style="width: 100%; font-size: 11px;">رفع خط مخصص من الجهاز</button>
-                    </div>
-                </div>
-
-                <div class="prop-group" id="prop-font-size" style="display: none;">
-                    <label>الحجم:</label>
-                    <input type="number" id="elemFontSize" min="8" max="500">
-                </div>
-
-                <div class="prop-group" id="prop-color-group" style="display: none;">
-                    <label>اللون والتعبئة:</label>
-                    <select id="fillType" style="margin-bottom: 5px; font-size: 12px;">
-                        <option value="solid">لون عادي (Solid)</option>
-                        <option value="gradient">تدرج لوني (Gradient)</option>
-                    </select>
-                    <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 5px;">
-                        <input type="color" id="elemColor" title="اللون 1">
-                        <input type="color" id="elemColor2" title="اللون 2 للتدرج" style="display: none;">
-                        <button id="btnEyedropper" class="btn-icon" title="أداة القطارة (Eyedropper)"><i class="fas fa-eye-dropper"></i></button>
-                    </div>
-                </div>
-
-                <div class="prop-row">
-                    <div class="prop-col">
-                        <label>المحاذاة:</label>
-                        <div class="align-group">
-                            <button class="btn-align" data-align="right"><i class="fas fa-align-right"></i></button>
-                            <button class="btn-align" data-align="center"><i class="fas fa-align-center"></i></button>
-                            <button class="btn-align" data-align="left"><i class="fas fa-align-left"></i></button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="prop-group">
-                    <label>التدوير (Rotation): <span id="angleVal">0</span>°</label>
-                    <input type="range" id="elemAngle" min="0" max="360" value="0">
-                </div>
-
-                <div class="prop-group">
-                    <label>الشفافية (Opacity): <span id="opacityVal">100</span>%</label>
-                    <input type="range" id="elemOpacity" min="0" max="1" step="0.01" value="1">
-                </div>
-                
-                <hr style="border: 1px solid #333; margin: 15px 0;">
-                
-                <div class="prop-group">
-                    <label>ترتيب الطبقة:</label>
-                    <div style="display: flex; gap: 5px;">
-                        <button class="btn-secondary" id="btnBringForward" style="flex:1;"><i class="fas fa-angle-up"></i> للأمام</button>
-                        <button class="btn-secondary" id="btnSendBackward" style="flex:1;"><i class="fas fa-angle-down"></i> للخلف</button>
-                    </div>
-                </div>
-                
-                <button id="btnDeleteElem" class="btn-danger" style="margin-top: 10px;"><i class="fas fa-trash"></i> حذف العنصر</button>
-            </div>
-
-            <div class="panel" style="flex: 1; display: flex; flex-direction: column; min-height: 200px;">
-                <h3><i class="fas fa-bars"></i> قائمة الطبقات</h3>
-                <div id="layersList" class="layers-list" style="overflow-y: auto; flex: 1; padding-right: 5px;">
-                </div>
-            </div>
-        </aside>
-    </div>
-
-    <!-- Modal: Generation Progress -->
-    <div id="progressModal" class="modal">
-        <div class="modal-content">
-            <h3><i class="fas fa-cogs"></i> جاري توليد البطاقات...</h3>
-            <div class="progress-bar-container">
-                <div id="progressBar" class="progress-bar"></div>
-            </div>
-            <p id="progressText">0 / 0</p>
-            <p style="font-size: 12px; color: #888; margin-top: 10px;">يرجى عدم إغلاق هذه النافذة حتى يكتمل التوليد.</p>
+    <!-- مساحة العمل -->
+    <main class="workspace" id="workspace">
+        <div id="emptyState" class="empty-state">
+            <img class="empty-state__wm" src="assets/logo-200.png" alt="" aria-hidden="true">
+            <svg class="ic ic-xl" aria-hidden="true"><use href="#i-cloud-upload"></use></svg>
+            <p>ارفع صورة القالب لتبدأ التصميم</p>
+            <small>PNG أو JPG · يُفضّل أن يكون بمقاس البطاقة النهائي (كلما زادت الدقة زادت جودة الإخراج)</small>
         </div>
-    </div>
+        <div id="canvasContainer" class="canvas-container" style="display: none;">
+            <canvas id="canvas"></canvas>
+        </div>
 
-    <script>
+        <div class="canvas-tools" role="group" aria-label="تكبير المعاينة">
+            <button class="btn-icon" id="zoomOut" title="تصغير العرض" aria-label="تصغير العرض">
+                <svg class="ic" aria-hidden="true"><use href="#i-zoom-out"></use></svg>
+            </button>
+            <span class="canvas-tools__val" id="zoomVal">100%</span>
+            <button class="btn-icon" id="zoomIn" title="تكبير العرض" aria-label="تكبير العرض">
+                <svg class="ic" aria-hidden="true"><use href="#i-zoom-in"></use></svg>
+            </button>
+            <span class="canvas-tools__sep"></span>
+            <button class="btn-icon" id="zoomFit" title="ملاءمة الشاشة" aria-label="ملاءمة الشاشة">
+                <svg class="ic" aria-hidden="true"><use href="#i-maximize"></use></svg>
+            </button>
+        </div>
+    </main>
+
+    <!-- لوحة الخصائص والطبقات -->
+    <aside class="sidebar right-sidebar" aria-label="خصائص العنصر والطبقات">
+
+        <div id="noSelectionMsg" class="panel">
+            <p class="hint-center">
+                <svg class="ic ic-lg" aria-hidden="true"><use href="#i-mouse-pointer-2"></use></svg>
+                اختر عنصراً على البطاقة لتعديل خصائصه
+            </p>
+        </div>
+
+        <section id="propertiesPanel" class="panel" style="display: none;">
+            <h3>
+                <svg class="ic" aria-hidden="true"><use href="#i-sliders-horizontal"></use></svg>
+                خصائص العنصر
+            </h3>
+
+            <div class="prop-group" id="prop-text-content">
+                <label for="elemText">النص (محتوى ثابت)</label>
+                <textarea id="elemText" rows="2"></textarea>
+            </div>
+
+            <div class="prop-group" id="prop-column">
+                <label for="elemColumn">ربط بعمود (متغيّر)</label>
+                <select id="elemColumn">
+                    <option value="">— بدون ربط (ثابت) —</option>
+                </select>
+            </div>
+
+            <div class="prop-group" id="prop-mask" style="display: none;">
+                <label for="elemMask">شكل القص السريع (Mask)</label>
+                <select id="elemMask">
+                    <option value="none">بدون (مستطيل)</option>
+                    <option value="circle">قص دائري</option>
+                    <option value="roundRect">حواف دائرية</option>
+                </select>
+            </div>
+
+            <div class="prop-group" id="prop-clipping" style="display: none;">
+                <label>ماسك متقدم (Clipping Mask)</label>
+                <p class="prop-hint">ارسم شكلاً واجعله أسفل الصورة في قائمة الطبقات، ثم اضغط «ربط».</p>
+                <div class="stack">
+                    <button class="btn-secondary" id="btnMakeClippingMask">
+                        <svg class="ic" aria-hidden="true"><use href="#i-layers"></use></svg>
+                        ربط ماسك مع الطبقة بالأسفل
+                    </button>
+                    <button class="btn-danger" id="btnRemoveClippingMask">
+                        <svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg>
+                        إزالة الماسك المتقدم
+                    </button>
+                </div>
+            </div>
+
+            <div class="prop-group" id="prop-font">
+                <label for="elemFont">الخط (Font)</label>
+                <select id="elemFont">
+                    <option value="Cairo">Cairo</option>
+                    <option value="Tajawal">Tajawal</option>
+                    <option value="Almarai">Almarai</option>
+                    <option value="Amiri">Amiri</option>
+                    <option value="El Messiri">El Messiri</option>
+                    <option value="Lalezar">Lalezar</option>
+                    <option value="Changa">Changa</option>
+                    <option value="Poppins">Poppins</option>
+                    <option value="Montserrat">Montserrat</option>
+                    <option value="Roboto">Roboto</option>
+                    <option value="Playfair Display">Playfair Display</option>
+                    <option value="Arial">Arial</option>
+                </select>
+                <div class="font-upload">
+                    <input type="file" id="customFontUploader" accept=".ttf,.otf,.woff" style="display:none;" />
+                    <button class="btn-secondary btn-mini" onclick="document.getElementById('customFontUploader').click()">
+                        <svg class="ic" aria-hidden="true"><use href="#i-upload"></use></svg>
+                        رفع خط مخصص من الجهاز
+                    </button>
+                </div>
+            </div>
+
+            <div class="prop-group" id="prop-font-size" style="display: none;">
+                <label for="elemFontSize">الحجم</label>
+                <input type="number" id="elemFontSize" min="8" max="500">
+            </div>
+
+            <div class="prop-group" id="prop-color-group" style="display: none;">
+                <label for="fillType">اللون والتعبئة</label>
+                <select id="fillType">
+                    <option value="solid">لون واحد (Solid)</option>
+                    <option value="gradient">تدرّج لوني (Gradient)</option>
+                </select>
+                <div class="color-row">
+                    <input type="color" id="elemColor" title="اللون 1">
+                    <input type="color" id="elemColor2" title="اللون 2 للتدرج" style="display: none;">
+                    <button id="btnEyedropper" class="btn-icon" title="أداة القطارة (Eyedropper)" aria-label="أداة القطارة">
+                        <svg class="ic" aria-hidden="true"><use href="#i-pipette"></use></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="prop-row">
+                <div class="prop-col">
+                    <label>المحاذاة</label>
+                    <div class="align-group">
+                        <button class="btn-align" data-align="right" title="محاذاة لليمين" aria-label="محاذاة لليمين"><svg class="ic" aria-hidden="true"><use href="#i-align-right"></use></svg></button>
+                        <button class="btn-align" data-align="center" title="توسيط" aria-label="توسيط"><svg class="ic" aria-hidden="true"><use href="#i-align-center"></use></svg></button>
+                        <button class="btn-align" data-align="left" title="محاذاة لليسار" aria-label="محاذاة لليسار"><svg class="ic" aria-hidden="true"><use href="#i-align-left"></use></svg></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="prop-group">
+                <label for="elemAngle">التدوير · <span class="prop-value"><span id="angleVal">0</span>°</span></label>
+                <input type="range" id="elemAngle" min="0" max="360" value="0">
+            </div>
+
+            <div class="prop-group">
+                <label for="elemOpacity">الشفافية · <span class="prop-value"><span id="opacityVal">100</span>%</span></label>
+                <input type="range" id="elemOpacity" min="0" max="1" step="0.01" value="1">
+            </div>
+
+            <hr class="divider">
+
+            <div class="prop-group">
+                <label>ترتيب الطبقة</label>
+                <div class="row2">
+                    <button class="btn-secondary" id="btnBringForward">
+                        <svg class="ic" aria-hidden="true"><use href="#i-chevron-up"></use></svg> للأمام
+                    </button>
+                    <button class="btn-secondary" id="btnSendBackward">
+                        <svg class="ic" aria-hidden="true"><use href="#i-chevron-down"></use></svg> للخلف
+                    </button>
+                </div>
+            </div>
+
+            <button id="btnDeleteElem" class="btn-danger btn-wide">
+                <svg class="ic" aria-hidden="true"><use href="#i-trash-2"></use></svg> حذف العنصر
+            </button>
+        </section>
+
+        <section class="panel panel--grow">
+            <h3>
+                <svg class="ic" aria-hidden="true"><use href="#i-grip-vertical"></use></svg>
+                قائمة الطبقات
+            </h3>
+            <div id="layersList" class="layers-list"></div>
+        </section>
+    </aside>
+</div>
+
+<!-- ============ شريط التبويب (الجوال) ============ -->
+<nav class="tabbar" aria-label="تنقّل اللوحات">
+    <button class="tab is-active" data-view-target="tools">
+        <svg class="ic" aria-hidden="true"><use href="#i-layers-3"></use></svg> الأدوات
+    </button>
+    <button class="tab" data-view-target="canvas">
+        <svg class="ic" aria-hidden="true"><use href="#i-image"></use></svg> البطاقة
+    </button>
+    <button class="tab" data-view-target="props">
+        <svg class="ic" aria-hidden="true"><use href="#i-sliders-horizontal"></use></svg> الخصائص
+    </button>
+</nav>
+
+<!-- ============ نافذة التقدّم ============ -->
+<div id="progressModal" class="modal" role="dialog" aria-modal="true" aria-label="جاري التوليد">
+    <div class="modal-content">
+        <h3><svg class="ic" aria-hidden="true"><use href="#i-settings"></use></svg> جاري توليد البطاقات…</h3>
+        <div class="progress-bar-container">
+            <div id="progressBar" class="progress-bar"></div>
+        </div>
+        <p id="progressText">0 / 0</p>
+        <p class="fine">لا تغلق هذه النافذة حتى يكتمل التوليد.</p>
+    </div>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+        
+        // ==== D1 · أدوات واجهة بحتة (لا تشارك في أي حساب أو توليد) ====
+        function ic(name, cls) {
+            return '<svg class="' + (cls || 'ic') + '" aria-hidden="true"><use href="#i-' + name + '"></use></svg>';
+        }
+        function toast(msg, type) {
+            var box = document.getElementById('toasts');
+            if (!box) { box = document.createElement('div'); box.id = 'toasts'; document.body.appendChild(box); }
+            document.body.classList.add('has-toast');   // يُبعد شريط التكبير عن التوست
+            var kill = function () {
+                if (!document.querySelector('.toast')) document.body.classList.remove('has-toast');
+            };
+            var t = document.createElement('div');
+            t.className = 'toast toast--' + (type || 'info');
+            var g = { ok: 'circle-check-big', warn: 'alert-triangle', danger: 'alert-triangle', info: 'info' };
+            t.innerHTML = ic(g[type] || 'info') + '<span>' + msg + '</span>';
+            t.addEventListener('click', function () { t.remove(); kill(); });
+            box.appendChild(t);
+            setTimeout(function () {
+                t.classList.add('out');
+                setTimeout(function () { t.remove(); kill(); }, 240);
+            }, type === 'danger' ? 6500 : 4200);
+        }
+
         // --- Global State ---
         let canvas = null;
         let scaleFactor = 1;
@@ -591,13 +479,19 @@
                     dom.emptyState.style.display = 'none';
                     dom.canvasContainer.style.display = 'block';
                     const workspace = document.getElementById('workspace');
-                    const padding = 80;
-                    const maxWidth = workspace.clientWidth - padding;
-                    const maxHeight = workspace.clientHeight - padding;
+                    // على الشاشات الصغيرة قد تكون لوحة الكانفس مخفية خلف تبويب ⇒ clientWidth=0
+                    // نستخدم أبعاد العرض نفسها كمرجع، فلا ينتج scaleFactor سالب/صفري. (لا يغيّر الديسكتوب)
+                    const hidden = workspace.clientWidth < 200 || workspace.clientHeight < 200;
+                    const pad = hidden ? 32 : 80;
+                    const availW = hidden ? window.innerWidth : workspace.clientWidth;
+                    const availH = hidden ? window.innerHeight : workspace.clientHeight;
+                    const maxWidth = Math.max(200, availW - pad);
+                    const maxHeight = Math.max(200, availH - pad);
                     scaleFactor = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
                     const displayW = img.width * scaleFactor;
                     const displayH = img.height * scaleFactor;
                     initCanvas(displayW, displayH);
+                    if (window.__fitCanvas) window.__fitCanvas();   // معايرة التكبير بعد التهيئة
                     fabric.Image.fromURL(event.target.result, (fabricImg) => {
                         canvas.setBackgroundImage(fabricImg, canvas.renderAll.bind(canvas), {
                             scaleX: scaleFactor,
@@ -621,7 +515,7 @@
                 excelData = XLSX.utils.sheet_to_json(firstSheet);
                 if (excelData.length > 0) {
                     columns = Object.keys(excelData[0]);
-                    dom.excelStatus.innerHTML = `<i class="fas fa-check-circle"></i> تم الربط (${excelData.length} سجل, ${columns.length} أعمدة)`;
+                    dom.excelStatus.innerHTML = `<span class="status-ok">${ic("circle-check-big")} تم الربط — ${excelData.length} سجل / ${columns.length} أعمدة</span>`;
                     updateColumnDropdowns();
                     currentPreviewIndex = 0;
                     dom.livePreviewControls.style.display = 'flex';
@@ -645,14 +539,14 @@
             localImages = {};
             let loadedCount = 0;
             const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
-            dom.folderStatus.innerHTML = `<i class="fas fa-spinner fa-spin"></i> جاري قراءة الصور...`;
+            dom.folderStatus.innerHTML = `<span class="status-busy">${ic("loader-circle", "ic spin")} جاري قراءة الصور...</span>`;
             imageFiles.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     localImages[file.name] = event.target.result;
                     loadedCount++;
                     if (loadedCount === imageFiles.length) {
-                        dom.folderStatus.innerHTML = `<i class="fas fa-check-circle"></i> تم تحميل ${loadedCount} صورة`;
+                        dom.folderStatus.innerHTML = `<span class="status-ok">${ic("circle-check-big")} تم تحميل ${loadedCount} صورة</span>`;
                         if (currentPreviewIndex >= 0) applyLivePreview(currentPreviewIndex);
                     }
                 };
@@ -661,7 +555,7 @@
         });
 
         document.getElementById('addTextBtn').addEventListener('click', () => {
-            if(!canvas) return alert('قم برفع القالب أولاً!');
+            if(!canvas) return toast("ارفع صورة القالب أولاً من اللوحة الأولى", "warn");
             const text = new fabric.IText('نص جديد', {
                 left: canvas.width / 2, top: canvas.height / 2,
                 fontFamily: 'Cairo', fontSize: 40, fill: '#ffffff',
@@ -674,7 +568,7 @@
         });
 
         document.getElementById('addImageBtn').addEventListener('click', () => {
-            if(!canvas) return alert('قم برفع القالب أولاً!');
+            if(!canvas) return toast("ارفع صورة القالب أولاً من اللوحة الأولى", "warn");
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = 'image/*';
@@ -701,7 +595,7 @@
         });
 
         document.getElementById('addDynamicImageBtn').addEventListener('click', () => {
-            if(!canvas) return alert('قم برفع القالب أولاً!');
+            if(!canvas) return toast("ارفع صورة القالب أولاً من اللوحة الأولى", "warn");
             const svgData = "data:image/svg+xml;charset=utf-8," + encodeURIComponent('<svg width="150" height="150" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#cccccc" /><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="20" fill="#333">صورة متغيرة</text></svg>');
             fabric.Image.fromURL(svgData, (img) => {
                 img.set({
@@ -782,26 +676,27 @@
             if(!canvas) return;
             dom.layersList.innerHTML = '';
             const objects = canvas.getObjects();
+            if (objects.length === 0) {
+                dom.layersList.innerHTML = `<div class="layers-empty">${ic('layers-3')}<div>لا عناصر بعد — أضف نصاً أو صورة من لوحة «إضافة عناصر»</div></div>`;
+                return;
+            }
             const activeObj = canvas.getActiveObject();
             [...objects].reverse().forEach((obj, reversedIndex) => {
                 const originalIndex = objects.length - 1 - reversedIndex;
-                let icon = 'fa-cube';
+                let icon = 'shapes';
                 let name = 'عنصر';
-                if(obj.type === 'i-text') { icon = 'fa-font'; name = obj.text.substring(0, 10) + '...'; }
-                else if(obj.type === 'image') { icon = 'fa-image'; name = obj.customType === 'dynamicImage' ? 'صورة متغيرة' : 'صورة'; }
-                else if(obj.type === 'rect') { icon = 'fa-square'; name = 'مربع'; }
-                else if(obj.type === 'circle') { icon = 'fa-circle'; name = 'دائرة'; }
-                else if(obj.type === 'triangle') { icon = 'fa-caret-up'; name = 'مثلث'; }
-                else if(obj.type === 'polygon' || obj.type === 'path') { icon = 'fa-draw-polygon'; name = 'شكل'; }
-                if(obj.mappedColumn) name += ` [${obj.mappedColumn}]`;
+                if(obj.type === 'i-text') { icon = 'type'; name = obj.text.length > 14 ? obj.text.substring(0, 14) + '…' : obj.text; }
+                else if(obj.type === 'image') { icon = 'image'; name = obj.customType === 'dynamicImage' ? 'صورة متغيرة' : 'صورة'; }
+                else if(obj.type === 'rect') { icon = 'square'; name = 'مربع'; }
+                else if(obj.type === 'circle') { icon = 'circle'; name = 'دائرة'; }
+                else if(obj.type === 'triangle') { icon = 'triangle'; name = 'مثلث'; }
+                else if(obj.type === 'polygon' || obj.type === 'path') { icon = 'sparkles'; name = 'شكل'; }
+                const tag = obj.mappedColumn ? `<span class="layer-tag">${obj.mappedColumn}</span>` : '';
                 const div = document.createElement('div');
                 div.className = `layer-item ${obj === activeObj ? 'active' : ''}`;
                 div.innerHTML = `
-                    <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
-                        <i class="fas ${icon} layer-icon"></i>
-                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</span>
-                    </div>
-                    <i class="fas fa-eye" style="color:#888; font-size:10px;"></i>
+                    <div class="layer-item__label">${ic(icon)}<span>${name}</span></div>
+                    ${tag}
                 `;
                 div.onclick = () => { canvas.setActiveObject(obj); canvas.renderAll(); };
                 dom.layersList.appendChild(div);
@@ -1000,7 +895,7 @@
                     canvas.renderAll();
                 });
             } else {
-                alert("لا يوجد شكل أسفل هذه الصورة لعمل ماسك. يرجى إضافة شكل وسحبه ليكون تحت الصورة مباشرة في قائمة الطبقات.");
+                toast("لا يوجد شكل أسفل هذه الصورة — أضف شكلاً واسحبه تحت الصورة مباشرة في قائمة الطبقات.", "warn");
             }
         };
 
@@ -1015,7 +910,7 @@
 
         dom.btnEyedropper.onclick = async () => {
             if (!window.EyeDropper) {
-                alert("متصفحك لا يدعم القطارة (EyeDropper API)");
+                toast("متصفحك لا يدعم أداة القطارة (EyeDropper)", "warn");
                 return;
             }
             const eyeDropper = new EyeDropper();
@@ -1045,8 +940,8 @@
                     dom.elemFont.value = fontName;
                     const obj = canvas.getActiveObject();
                     if(obj && obj.type === 'i-text') { obj.set('fontFamily', fontName); canvas.renderAll(); }
-                    alert('تم تحميل الخط بنجاح!');
-                }).catch(err => alert("فشل تحميل الخط"));
+                    toast("تم تحميل الخط وتفعيله على النص المحدد", "ok");
+                }).catch(err => toast("فشل تحميل الخط — تأكد أن الملف TTF/OTF/WOFF صالح", "danger"));
             };
             reader.readAsDataURL(file);
         });
@@ -1139,7 +1034,7 @@
         }
 
         dom.btnGenerate.onclick = async () => {
-            if(!canvas || excelData.length === 0) return alert("يجب رفع القالب وملف الإكسيل أولاً!");
+            if(!canvas || excelData.length === 0) return toast("يلزم: صورة القالب + ملف Excel — ابدأ من لوحة «القالب والخلفية»", "warn");
             canvas.discardActiveObject();
             canvas.renderAll();
             const zip = new JSZip();
@@ -1164,7 +1059,7 @@
             zip.generateAsync({type:"blob"}).then(function(content) {
                 saveAs(content, "Cards_Export.zip");
                 dom.progressModal.style.display = 'none';
-                alert("تم التوليد بنجاح!");
+                toast("تم التوليد بنجاح — يبدأ تنزيل ملف البطاقات", "ok");
             });
         };
 
@@ -1194,6 +1089,91 @@
                 applyLivePreview(currentPreviewIndex);
             }
         };
-    </script>
+</script>
+<script>
+    // ==== D1 · لوحات Accent (لون الواجهة فقط — لا يمس البطاقات ولا التصدير) ====
+    (function () {
+        var PAL = [
+            { id: "brand",    ar: "هوية أرتـم", hex: "#6fb8a8", mode: "tint" },
+            { id: "emerald",  ar: "زمرّدي",     hex: "#2fd39a", mode: "tint" },
+            { id: "sapphire", ar: "سماوي",      hex: "#6ea8f5", mode: "tint" },
+            { id: "pearl",    ar: "لؤلؤي",      hex: "#ffffff", mode: "tint" },
+            { id: "platinum", ar: "بلاتين",     hex: "#dfe4ec", mode: "tint" },
+            { id: "graphite", ar: "جرافيت",     hex: "#b6bcc7", mode: "tint" }
+        ];
+        var KEY = "artmark.ui.palette";
+        var btn = document.getElementById("btnPalette"), menu = document.getElementById("paletteMenu");
+        if (!btn || !menu) return;
+        var cur = "";
+        try { cur = localStorage.getItem(KEY) || ""; } catch (e) {}
+        if (PAL.every(function (p) { return p.id !== cur; })) cur = "brand";
+
+        function paint() {
+            var conf = PAL.filter(function (p) { return p.id === cur; })[0] || PAL[0];
+            document.documentElement.setAttribute("data-palette", cur);
+            // raw = الشعار بألوانه الأصلية · tint = الشعار يأخذ لون الواجهة
+            document.documentElement.setAttribute("data-palette-mode", conf.mode);
+            menu.innerHTML = '<div class="palette-menu__t">لوحة الألوان</div>' + PAL.map(function (p) {
+                return '<button class="palette-opt' + (p.id === cur ? " sel" : "") + '" data-p="' + p.id + '" role="menuitemradio" aria-checked="' + (p.id === cur) + '">' +
+                    '<span class="sw" style="background:' + p.hex + '"></span>' + p.ar +
+                    '<svg class="tick" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></button>';
+            }).join("");
+        }
+        paint();
+        menu.addEventListener("click", function (e) {
+            var b = e.target.closest("[data-p]"); if (!b) return;
+            cur = b.getAttribute("data-p");
+            try { localStorage.setItem(KEY, cur); } catch (err) {}
+            paint();
+        });
+        btn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            if (menu.hasAttribute("data-open")) menu.removeAttribute("data-open");
+            else menu.setAttribute("data-open", "");
+        });
+        document.addEventListener("click", function (e) {
+            if (menu.hasAttribute("data-open") && !menu.contains(e.target)) menu.removeAttribute("data-open");
+        });
+        document.addEventListener("keydown", function (e) { if (e.key === "Escape") menu.removeAttribute("data-open"); });
+    })();
+</script>
+
+<script>
+    // ==== D1 · تحكمات واجهة بحتة: تبديل اللوحات على الجوال + تكبير المعاينة ====
+    (function () {
+        var body = document.body;
+        document.querySelectorAll('.tab').forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                var v = tab.getAttribute('data-view-target');
+                body.setAttribute('data-view', v);
+                document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
+                if (v === 'canvas' && window.__fitCanvas) window.__fitCanvas();
+            });
+        });
+
+        // تكبير/تصغير العرض فقط — لا يغيّر دقة التصدير ولا مقاس الكانفس الداخلي
+        var zoom = 1, cont = document.getElementById('canvasContainer');
+        function apply() {
+            if (!cont) return;
+            cont.style.transform = zoom === 1 ? '' : 'scale(' + zoom + ')';
+            var lbl = document.getElementById('zoomVal');
+            if (lbl) lbl.textContent = Math.round(zoom * 100) + '%';
+        }
+        function set(z) { zoom = Math.min(2, Math.max(.25, z)); apply(); }
+        window.__fitCanvas = function () {
+            if (!cont) return;
+            cont.style.transform = '';
+            var w = document.getElementById('workspace');
+            if (!w) return;
+            var f = Math.min((w.clientWidth - 44) / cont.offsetWidth, (w.clientHeight - 44) / cont.offsetHeight, 1);
+            if (isFinite(f) && f > 0) set(Math.round(f * 100) / 100); else set(1);
+        };
+        var on = document.getElementById('zoomIn'), off = document.getElementById('zoomOut'), fit = document.getElementById('zoomFit');
+        if (on) on.addEventListener('click', function () { set(zoom + .1); });
+        if (off) off.addEventListener('click', function () { set(zoom - .1); });
+        if (fit) fit.addEventListener('click', function () { window.__fitCanvas(); });
+        window.addEventListener('resize', function () { if (window.innerWidth <= 900) window.__fitCanvas(); });
+    })();
+</script>
 </body>
 </html>
