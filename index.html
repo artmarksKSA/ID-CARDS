@@ -580,7 +580,6 @@ input[type="range"] {
     .tool-btn { min-height: 58px; }
     .right-sidebar .panel[style*="flex: 1"] { min-height: 180px; }
 
-    .canvas-tools { inset-inline-start: 10px; bottom: 10px; }
     #canvasContainer { transform: none !important; }
 }
 
@@ -633,13 +632,12 @@ input[type="range"] {
 
 /* ---------- 21. تصحيحات D1 بعد مراجعة اللقطات ---------- */
 /* شريط التكبير: ثابت لا يُمسح مع تمرير المساحة */
-.canvas-tools { position: fixed; inset-inline-start: 18px; bottom: 18px; }
+.canvas-tools { position: absolute; z-index: 8; }
 
 /* ارتفاع شريط التبويب متغيّر حسب الحواجز الآمنة، ويُستعمل لضبط التوست وشريط التكبير */
 :where(:root) { --tabbar-space: 0px; }
 @media (max-width: 900px) {
     :where(:root) { --tabbar-space: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); }
-    .canvas-tools { bottom: calc(var(--tabbar-space) + 12px); inset-inline-start: 12px; }
 }
 
 /* التوست لا يجلس فوق شريط التبويب */
@@ -659,9 +657,7 @@ input[type="range"] {
 /* ---------- 22. لا يتصادم التوست مع شريط التكبير ---------- */
 .canvas-tools { transition: transform var(--t), opacity var(--t); }
 body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46px))); }
-@media (max-width: 900px) {
-    body.has-toast .canvas-tools { opacity: 0; pointer-events: none; }
-}
+/* (نُقلت أدوات التكبير إلى §30 في أسفل الملف) */
 
 /* ---------- 23. لوحات Accent — لا ذهبي ---------- */
 /* كل لوحات «البديل» تُلَفُّ بـ :where() (أولوية صفرية) لتبقى قاعدة «هوية أرتـم»
@@ -801,9 +797,32 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
 .save-opt__d { font-size: 11px; color: var(--text-3); line-height: 1.5; }
 .save-opt--zip .save-opt__k { color: var(--accent); }
 @media (max-width: 900px) {
-    .save-menu { inset-inline: 0 auto; width: min(88vw, 268px); }
+    .save-menu { width: min(88vw, 268px); }
     .btn-primary--split { width: 44px; }
 }
+
+/* ---------- 30. D3 · أدوات التكبير في هامش الرأس بدل الطفو فوق المحتوى ---------- */
+/* ملاحظة: يجب إبطال inset-inline-start الافتراضي عند تغيير الحافة في استعلام آخر،
+   وإلا اجتمعت حافتان فتمدد الشريط بعرض الشاشة. */
+.canvas-tools {
+    top: 10px; inset-inline-end: 12px; inset-inline-start: auto; bottom: auto;
+    width: max-content; max-width: calc(100vw - 20px);
+    padding: 3px; border: 1px solid var(--line); border-radius: 999px;
+    background: color-mix(in oklab, var(--bg-2, #101215) 82%, transparent);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    transition: opacity var(--t);
+}
+@media (max-width: 900px) {
+    .canvas-tools {
+        position: fixed; z-index: 38;
+        top: calc(var(--topbar-h, 64px) + 6px);
+        inset-inline-end: 10px; inset-inline-start: auto;
+    }
+    .workspace { padding-top: calc(var(--topbar-h, 64px) - var(--sp, 14px) + 52px); }
+    /* التوست صار في أسفل الشاشة فوق شريط التبويب — لم تعد هناك حاجة لإخفاء الأدوات */
+    body.has-toast .canvas-tools { opacity: 1; pointer-events: auto; transform: none; }
+}
+
 
 </style>
 
@@ -2066,7 +2085,12 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
             if (!w || !cw || !ch) { cont.style.transform = keep; set(1); return; }
             var availW = w.clientWidth || window.innerWidth;
             var availH = w.clientHeight || Math.max(260, window.innerHeight - 210);
-            var f = Math.min((availW - 24) / cw, (availH - 24) / ch, 1);
+            // نطرح هامش شريط الأدوات حتى لا يجلس فوق البطاقة
+            var pill = document.querySelector('.canvas-tools');
+            var top = (pill && pill.offsetParent !== null) ? Math.round(pill.getBoundingClientRect().height) + 10 : 0;
+            // ملاحظة: الدقة المضبوطة عند الرفع تجعل الكانفس يملأ العرض على الجوال،
+            // فحد 1 هنا يمنع التكبير فوق الحجم الحقيقي فقط (لا يترك فراغاً مقصوداً).
+            var f = Math.min((availW - 24) / cw, (availH - 24 - top) / ch, 1);
             if (isFinite(f) && f > 0) set(Math.round(f * 100) / 100); else set(1);
         };
         window.__setZoom = set;
@@ -2088,6 +2112,17 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
             var t = tabs().filter(function (x) { return x.getAttribute('data-view-target') === v; })[0];
             if (t) t.click();
         }
+
+        // الرأس يلتفّ على الجوال ⇒ طوله متغيّر. نقيسه ونمرره لـ CSS بدل افتراض 64px
+        var head = document.querySelector('.topbar'), root = document.documentElement;
+        function syncHead() {
+            if (!head) return;
+            root.style.setProperty('--topbar-h', Math.round(head.getBoundingClientRect().height) + 'px');
+            if (window.__fitCanvas) window.__fitCanvas();
+        }
+        if (head && window.ResizeObserver) new ResizeObserver(syncHead).observe(head);
+        window.addEventListener('load', syncHead);
+        syncHead();
 
         // إعادة الملاءمة كلما ظهر القسم أو تغيّر حجمه (تدوير الجهاز، ظهور لوحة المفاتيح)
         var w = document.getElementById('workspace');
@@ -2144,5 +2179,5 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
         }
     })();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3259d836d4ab260',t:'MTc4Nzk0NDIxOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a325bae6de670e41',t:'MTc4Nzk0NTQyMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
