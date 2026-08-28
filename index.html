@@ -824,6 +824,28 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
 }
 
 
+/* ---------- 31. D4 · حذف لطيف: زر × يلازم العنصر المحدد + تراجع ---------- */
+.sel-del {
+    position: fixed; z-index: 92; display: none; align-items: center; gap: 6px;
+    min-width: 44px; min-height: 44px; padding: 6px 11px;
+    border: 1px solid var(--accent-line); border-radius: 999px;
+    background: color-mix(in oklab, var(--bg-2, #101215) 88%, transparent);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    color: var(--accent); font: inherit; font-size: 12px; font-weight: 800;
+    box-shadow: var(--shadow-key); cursor: pointer; touch-action: manipulation;
+    transition: transform var(--t), border-color var(--t);
+}
+.sel-del.on { display: inline-flex; }
+.sel-del:active { transform: scale(.94); }
+.sel-del .ic { width: 17px; height: 17px; }
+@media (hover: hover) { .sel-del:hover { border-color: var(--accent); } }
+/* التراجع داخل التوست يحتاج لمسه */
+.toast__undo {
+    margin-inline-start: 6px; padding: 5px 11px; border: 1px solid var(--accent-line);
+    border-radius: 999px; background: var(--accent-glow); color: var(--text);
+    font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; pointer-events: auto;
+}
+
 </style>
 
     <!-- المكتبات: نفس الإصدارات الأصلية، لم يتغيّر منها شيء -->
@@ -2102,7 +2124,7 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
     })();
 </script>
 <script>
-    /* ==== D2 · سلوك الجوال: تبديل سريع، تكبير بالقرص، وإعادة ملاءمة ==== */
+    /* ==== D2/D4 · سلوك الجوال واللمس + أدوات التحديد (بلا مساس بمنطق التوليد) ==== */
     (function () {
         var body = document.body;
         var bar = document.querySelector('.tabbar');
@@ -2111,6 +2133,10 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
         function show(v) {
             var t = tabs().filter(function (x) { return x.getAttribute('data-view-target') === v; })[0];
             if (t) t.click();
+        }
+        function liveCanvas() {
+            try { return (typeof canvas !== 'undefined' && canvas && canvas.getActiveObject) ? canvas : null; }
+            catch (e) { return null; }
         }
 
         // الرأس يلتفّ على الجوال ⇒ طوله متغيّر. نقيسه ونمرره لـ CSS بدل افتراض 64px
@@ -2134,18 +2160,21 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
                 raf = requestAnimationFrame(window.__fitCanvas);
             }).observe(w);
         }
-        // بعد رفع القالب: الملاءمة لا تعتمد على التوقيت بل على ظهور الكانفس فعلياً
         var mo = new MutationObserver(function () {
             if (window.__fitCanvas) window.__fitCanvas();
+            if (window.__placeSelDel) window.__placeSelDel();
         });
         if (w) mo.observe(w, { attributes: true, attributeFilter: ['style', 'class'] });
+        // تبديل الألواح يغيّر data-view على <body> فقط بلا أي رسم ⇒ نرصدّه ليعود الزرّ
+        new MutationObserver(function () { if (window.__placeSelDel) window.__placeSelDel(); })
+            .observe(document.body, { attributes: true, attributeFilter: ['data-view'] });
 
-        // سحب أفقي بين الألواح الثلاث
+        // سحب أفقي بين الألواح الثلاثة
         var sx = 0, sy = 0, tracking = false;
         document.addEventListener('touchstart', function (e) {
             if (!isMobile() || e.touches.length !== 1) { tracking = false; return; }
             var t = e.target;
-            if (t.closest && (t.closest('#paletteMenu') || t.closest('#canvasContainer') || t.closest('input,select,textarea'))) { tracking = false; return; }
+            if (t.closest && (t.closest('#paletteMenu') || t.closest('#canvasContainer') || t.closest('.sel-del') || t.closest('input,select,textarea'))) { tracking = false; return; }
             tracking = true; sx = e.touches[0].clientX; sy = e.touches[0].clientY;
         }, { passive: true });
         document.addEventListener('touchend', function (e) {
@@ -2160,7 +2189,7 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
             else if (dx > 0 && i > 0) show(list[i - 1].getAttribute('data-view-target'));
         }, { passive: true });
 
-        // قرص بإصبعين = تكبير/تصغير المعاينة فقط (لا يغيّر دقة التصدير)
+        // قرص بإصبعين = تكبير/تصغير العرض فقط (لا يغيّر دقة التصدير)
         var zone = document.querySelector('#canvasContainer .upper-canvas') || document.querySelector('#canvasContainer');
         var base = 1, d0 = 0;
         function dist(t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY); }
@@ -2177,7 +2206,106 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
                 window.__setZoom(base * (dist(e.touches) / d0));
             }, { passive: false });
         }
+
+        /* ==== D4 · حذف لطيف: زر × يلازم العنصر المحدد + تراجع ==== */
+        var del = document.createElement('button');
+        del.className = 'sel-del'; del.type = 'button';
+        del.setAttribute('aria-label', 'حذف العنصر المحدد');
+        del.innerHTML = '<svg class="ic" aria-hidden="true"><use href="#i-trash-2"></use></svg><span>حذف</span>';
+        document.body.appendChild(del);
+
+        function placeDel0() {
+            var c = liveCanvas();
+            if (!c) { del.classList.remove('on'); return; }
+            var o = c.getActiveObject();
+            if (!o || !canvasViewVisible()) { del.classList.remove('on'); return; }
+            var el = document.querySelector('#canvasContainer .lower-canvas') || document.querySelector('canvas');
+            if (!el || !el.getBoundingClientRect().width) { del.classList.remove('on'); return; }
+            var r = o.getBoundingRect(true), m = c.viewportTransform;
+            var er = el.getBoundingClientRect(), k = er.width / (c.getWidth() || 1);
+            var x = er.left + (r.left * m[0] + m[4]) * k;
+            var y = er.top + (r.top * m[3] + m[5]) * k;
+            var pad = 6, tw = del.offsetWidth || 96, th = del.offsetHeight || 44;
+            var left = x - tw - 8, top = y + 4;              // يحاذي حافة العنصر (RTL: يساره)
+            if (left < pad) left = x + 8;
+            if (left + tw > innerWidth - pad) left = innerWidth - pad - tw;
+            var tab = document.querySelector('.tabbar');
+            var limit = innerHeight - pad - th - 4;
+            if (tab && tab.offsetParent !== null) limit = tab.getBoundingClientRect().top - pad - th;
+            if (top > limit) top = limit;
+            if (top < pad) top = pad;
+            del.style.left = Math.round(left) + 'px'; del.style.top = Math.round(top) + 'px';
+            del.classList.add('on');
+        }
+        function placeDel() {
+            try { placeDel0(); } catch (e) { del.classList.remove('on'); wire(); }
+        }
+        function hideDel() { del.classList.remove('on'); }
+
+        function toastDel(o) {
+            var box = document.getElementById('toasts'); if (!box || !o) return;
+            var t = document.createElement('div');
+            t.className = 'toast toast--ok';
+            var msg = document.createElement('span'); msg.textContent = 'تم حذف العنصر.';
+            var btn = document.createElement('button');
+            btn.className = 'toast__undo'; btn.type = 'button'; btn.textContent = 'تراجع';
+            btn.onclick = function () {
+                var c = liveCanvas(); if (!c) return;
+                c.add(o); c.setActiveObject(o); c.renderAll();
+                if (typeof updateLayersList === 'function') updateLayersList();
+                t.remove(); placeDel();
+            };
+            t.appendChild(msg); t.appendChild(btn); box.appendChild(t);
+            setTimeout(function () { if (t.parentNode) t.remove(); }, 6000);
+        }
+        del.addEventListener('click', function (e) {
+            e.preventDefault(); e.stopPropagation();
+            var c = liveCanvas(); if (!c) return;
+            var o = c.getActiveObject(); if (!o) return hideDel();
+            c.discardActiveObject(); c.remove(o);
+            if (typeof updateLayersList === 'function') updateLayersList();
+            hideDel(); toastDel(o); c.requestRenderAll();
+        });
+
+        // الكانفس يُعاد إنشاؤه عند كل رفع قالب (canvas.dispose()) ⇒ نعيد الربط على النسخة الحيّة
+        var wired = (typeof WeakSet === 'function') ? new WeakSet() : null, wiredList = [];
+        function wire() {
+            var c = liveCanvas();
+            if (!c || !c.on) return;
+            if (wired ? wired.has(c) : wiredList.indexOf(c) >= 0) return;
+            if (wired) wired.add(c); else wiredList.push(c);
+            ['selection:created', 'selection:updated'].forEach(function (ev) { c.on(ev, queuePlace); });
+            c.on('selection:cleared', function () { hideDel(); });
+            ['object:moving', 'object:scaling', 'object:rotating', 'object:modified'].forEach(function (ev) {
+                c.on(ev, queuePlace);
+            });
+            window.__placeSelDel = placeDel;
+            // خطّاف الرسم: يضمن الظهور والاختفاء مع كل تحديث مهما كان مصدر التحديد/الإلغاء
+            if (!c.__selDelHooked) {
+                c.__selDelHooked = true;
+                ['renderAll', 'requestRenderAll'].forEach(function (fn) {
+                    var orig = c[fn];
+                    if (typeof orig !== 'function') return;
+                    c[fn] = function () { var r = orig.apply(this, arguments); queuePlace(); return r; };
+                });
+            }
+            queuePlace();
+        }
+        var pRaf = 0;
+        function queuePlace() {
+            if (pRaf) return;
+            pRaf = requestAnimationFrame(function () { pRaf = 0; placeDel(); });
+        }
+        function canvasViewVisible() {
+            if (!isMobile()) return true;
+            return document.body.getAttribute('data-view') === 'canvas';
+        }
+        wire();
+        setInterval(wire, 600);
+        document.addEventListener('change', function () { setTimeout(wire, 800); }, true);
+        window.addEventListener('resize', hideDel);
+        document.addEventListener('scroll', function () { placeDel(); }, true);
     })();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a325bae6de670e41',t:'MTc4Nzk0NTQyMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a325ceb65ac2edd4',t:'MTc4Nzk0NjIzMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
