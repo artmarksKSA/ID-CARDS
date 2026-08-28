@@ -769,6 +769,42 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
     #livePreviewControls .btn-icon { width: 44px; height: 44px; min-height: 44px; }
 }
 
+/* ---------- 29. D3 · عنقود الحفظ: ملف واحد أو مضغوط، مع اختيار الدقة ---------- */
+.save-cluster { display: flex; align-items: stretch; position: relative; }
+.save-cluster .btn-primary { border-start-end-radius: 0; border-end-end-radius: 0; }
+.btn-primary--split {
+    flex: none; width: 38px; min-height: 0; padding: 0;
+    border-inline-start: 1px solid rgba(0, 0, 0, .22);
+    border-start-start-radius: 0; border-end-start-radius: 0; border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+.btn-primary--split .ic { width: 16px; height: 16px; }
+.save-menu {
+    position: absolute; z-index: 95; top: calc(100% + 8px); inset-inline-end: 0;
+    width: 250px; max-width: calc(100vw - 20px); padding: 7px;
+    display: none; flex-direction: column; gap: 3px;
+    border: 1px solid var(--line); border-radius: var(--r-md);
+    background: var(--bg-2, #101215); box-shadow: var(--shadow-key);
+}
+.save-menu[data-open] { display: flex; }
+.save-menu__t { font-size: 10.5px; font-weight: 800; color: var(--text-3); letter-spacing: .4px; padding: 4px 8px 5px; }
+.save-menu__sep { height: 1px; margin: 5px 4px; background: var(--line); }
+.save-opt {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%;
+    min-height: 48px; padding: 8px 10px; text-align: start;
+    border: 1px solid transparent; border-radius: var(--r-sm);
+    background: transparent; color: var(--text-2); cursor: pointer;
+    transition: background var(--t), border-color var(--t), color var(--t);
+}
+.save-opt:hover { background: var(--bg-3, rgba(255, 255, 255, .05)); color: var(--text); }
+.save-opt.is-sel { border-color: var(--accent-line); background: var(--accent-glow); }
+.save-opt__k { font-size: 12.5px; font-weight: 800; color: var(--text); }
+.save-opt__d { font-size: 11px; color: var(--text-3); line-height: 1.5; }
+.save-opt--zip .save-opt__k { color: var(--accent); }
+@media (max-width: 900px) {
+    .save-menu { inset-inline: 0 auto; width: min(88vw, 268px); }
+    .btn-primary--split { width: 44px; }
+}
+
 </style>
 
     <!-- المكتبات: نفس الإصدارات الأصلية، لم يتغيّر منها شيء -->
@@ -856,10 +892,36 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
             <span class="palette-btn__sw"></span>
         </button>
         <div class="palette-menu" id="paletteMenu" role="menu" aria-label="اختيار لوحة الألوان"></div>
-        <button id="btnGenerate" class="btn-primary">
-            <svg class="ic" aria-hidden="true"><use href="#i-download"></use></svg>
-            <span class="btn-label">توليد وحفظ (ZIP)</span>
-        </button>
+        <div class="save-cluster">
+            <button id="btnGenerate" class="btn-primary">
+                <svg class="ic" aria-hidden="true"><use href="#i-download"></use></svg>
+                <span class="btn-label">حفظ البطاقة</span>
+            </button>
+            <button id="btnSaveMenu" class="btn-primary btn-primary--split" title="خيارات الحفظ"
+                    aria-label="خيارات الحفظ" aria-haspopup="true">
+                <svg class="ic" aria-hidden="true"><use href="#i-chevron-down"></use></svg>
+            </button>
+            <div class="save-menu" id="saveMenu" role="menu" aria-label="طريقة الحفظ">
+                <div class="save-menu__t">الحفظ المباشر</div>
+                <button class="save-opt" role="menuitemradio" data-scale="1">
+                    <span class="save-opt__k"> JPG · 1×</span>
+                    <span class="save-opt__d">دقة القالب الأصلية — أخف ملف</span>
+                </button>
+                <button class="save-opt is-sel" role="menuitemradio" data-scale="2" aria-checked="true">
+                    <span class="save-opt__k">JPG · 2×</span>
+                    <span class="save-opt__d">وجود عالي — مناسب للطباعة</span>
+                </button>
+                <button class="save-opt" role="menuitemradio" data-scale="3">
+                    <span class="save-opt__k">JPG · 3×</span>
+                    <span class="save-opt__d">أعلى دقة — ملف أكبر</span>
+                </button>
+                <div class="save-menu__sep"></div>
+                <button class="save-opt save-opt--zip" id="btnZipAll" role="menuitem">
+                    <span class="save-opt__k">مضغوط ZIP · كل السجلات</span>
+                    <span class="save-opt__d" id="zipHint">بدقة القالب · يتطلب ملف Excel</span>
+                </button>
+            </div>
+        </div>
     </div>
 </header>
 
@@ -1158,6 +1220,38 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
             }, type === 'danger' ? 6500 : 4200);
         }
 
+        
+        // ==== D3 · حفظ البطاقة الظاهرة كما هي (بلا Excel) + اختيار الدقة ====
+        window.__exportScale = 2;
+        window.__saveSingle = async function () {
+            if (!canvas) return toast("ارفع صورة القالب أولاً.", "warn");
+            canvas.discardActiveObject(); canvas.renderAll();
+            var q = window.__exportScale || 1;
+            var modal = document.getElementById('progressModal'),
+                ptext = document.getElementById('progressText'),
+                pbar = document.getElementById('progressBar');
+            if (modal) modal.style.display = 'flex';
+            if (ptext) ptext.innerText = 'جاري التصدير بدقة ×' + q + '...';
+            if (pbar) pbar.style.width = '65%';
+            await new Promise(function (r) { setTimeout(r, 40); });
+            var url = canvas.toDataURL({ format: 'jpeg', quality: 0.97, multiplier: q / scaleFactor });
+            var nm = "بطاقة";
+            var first = canvas.getObjects().filter(function (o) { return o.type === 'i-text' && o.text; })[0];
+            if (first) nm = String(first.text).split('\n')[0].trim().slice(0, 40);
+            if (!nm) nm = "Card_" + Date.now();
+            var blob = await (await fetch(url)).blob();
+            saveAs(blob, nm + ".jpg");
+            if (modal) modal.style.display = 'none';
+            toast("تم حفظ «" + nm + "» بدقة ×" + q + " — " + Math.round(blob.size / 1024) + "KB.", "ok");
+        };
+        window.__saveZipAll = async function () {
+            if (!canvas) return toast("ارفع صورة القالب أولاً.", "warn");
+            if (typeof excelData === "undefined" || !excelData.length) {
+                toast("لا يوجد ملف Excel — سيُحفظ ما تراه كبطاقة واحدة.", "warn");
+                return window.__saveSingle();
+            }
+            return await ZIP_LOOP();
+        };
         // --- Global State ---
         let canvas = null;
         let scaleFactor = 1;
@@ -1786,8 +1880,8 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
             canvas.renderAll();
         }
 
-        dom.btnGenerate.onclick = async () => {
-            if(!canvas || excelData.length === 0) return toast("يلزم: صورة القالب + ملف Excel — ابدأ من لوحة «القالب والخلفية»", "warn");
+        async function ZIP_LOOP() {
+            
             canvas.discardActiveObject();
             canvas.renderAll();
             const zip = new JSZip();
@@ -1814,7 +1908,8 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
                 dom.progressModal.style.display = 'none';
                 toast("تم التوليد بنجاح — يبدأ تنزيل ملف البطاقات", "ok");
             });
-        };
+        }
+        dom.btnGenerate.onclick = window.__saveSingle;
 
         function updateLivePreviewUI() {
             dom.livePreviewText.innerText = `معاينة: السجل ${currentPreviewIndex + 1} من ${excelData.length}`;
@@ -1842,6 +1937,45 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
                 applyLivePreview(currentPreviewIndex);
             }
         };
+        // ==== D3 · قائمة خيارات الحفظ ====
+        (function () {
+            var sbtn = document.getElementById('btnSaveMenu'), smenu = document.getElementById('saveMenu');
+            if (!sbtn || !smenu) return;
+            var KEEP = 'data-open';
+            sbtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (smenu.hasAttribute(KEEP)) smenu.removeAttribute(KEEP); else smenu.setAttribute(KEEP, '');
+            });
+            document.addEventListener('click', function (e) {
+                if (smenu.hasAttribute(KEEP) && !smenu.contains(e.target)) smenu.removeAttribute(KEEP);
+            });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') smenu.removeAttribute(KEEP); });
+            smenu.addEventListener('click', function (e) {
+                var z = e.target.closest('#btnZipAll');
+                if (z) { smenu.removeAttribute(KEEP); window.__saveZipAll(); return; }
+                var o = e.target.closest('.save-opt[data-scale]'); if (!o) return;
+                window.__exportScale = +o.getAttribute('data-scale');
+                smenu.querySelectorAll('.save-opt[data-scale]').forEach(function (x) {
+                    var on = x === o;
+                    x.classList.toggle('is-sel', on);
+                    x.setAttribute('aria-checked', on ? 'true' : 'false');
+                });
+                var lb = document.querySelector('#btnGenerate .btn-label');
+                if (lb) lb.textContent = 'حفظ البطاقة ×' + window.__exportScale;
+                smenu.removeAttribute(KEEP);
+                window.__saveSingle();
+            });
+            var hint = document.getElementById('zipHint'), up = document.getElementById('excelUploader');
+            if (hint && up) {
+                var sync = function () {
+                    var n = (typeof excelData !== 'undefined') ? excelData.length : 0;
+                    hint.textContent = n ? ('عدد السجلات: ' + n) : 'بدقة القالب · بلا Excel احفظ البطاقة الحالية';
+                };
+                sync();
+                up.addEventListener('change', function () { setTimeout(sync, 1500); });
+            }
+        })();
+
 </script>
 <script>
     // ==== D1 · لوحات Accent (لون الواجهة فقط — لا يمس البطاقات ولا التصدير) ====
@@ -2010,5 +2144,5 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
         }
     })();
 </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3259d836d4ab260',t:'MTc4Nzk0NDIxOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
