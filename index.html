@@ -19,6 +19,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Cairo:wght@400;700&family=Tajawal:wght@400;700&family=Almarai:wght@400;700&family=Amiri:wght@400;700&family=El+Messiri:wght@400;700&family=Lalezar&family=Changa:wght@400;700&family=Poppins:wght@400;700&family=Montserrat:wght@400;700&family=Roboto:wght@400;700&family=Playfair+Display:wght@400;700&display=swap">
+    <style id="am-fontface">@font-face{font-family:'Mohammad Bold Art';src:url('fonts/mohammad-bold-art-1.ttf') format('truetype');font-weight:1 1000;font-style:normal;font-display:block;}</style><link rel="preload" href="fonts/mohammad-bold-art-1.ttf" as="font" type="font/ttf" crossorigin>
 
     <style>
 /* ============================================================
@@ -78,7 +79,7 @@
     --inset-hi: inset 0 1px 0 rgba(255, 255, 255, .06);
 
     /* خطوط الواجهة فقط (لا تمس خطوط البطاقة) */
-    --ui-font: 'IBM Plex Sans Arabic', 'Tajawal', 'Segoe UI', Tahoma, sans-serif;
+    --ui-font: 'Mohammad Bold Art', 'IBM Plex Sans Arabic', 'Tajawal', 'Segoe UI', Tahoma, sans-serif;
 
     --tabbar-h: 62px;
 }
@@ -1203,6 +1204,7 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
             <div class="prop-group" id="prop-font">
                 <label for="elemFont">الخط (Font)</label>
                 <select id="elemFont">
+                    <option value="Mohammad Bold Art" selected>Mohammad Bold Art — الخط الرسمي</option>
                     <option value="Cairo">Cairo</option>
                     <option value="Tajawal">Tajawal</option>
                     <option value="Almarai">Almarai</option>
@@ -1437,6 +1439,7 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
                 height: height,
                 preserveObjectStacking: true
             });
+            window.__amEpoch = (window.__amEpoch || 0) + 1;
             canvas.on('selection:created', onObjectSelected);
             canvas.on('selection:updated', onObjectSelected);
             canvas.on('selection:cleared', onSelectionCleared);
@@ -1532,7 +1535,7 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
             if(!canvas) return toast("ارفع صورة القالب أولاً من اللوحة الأولى", "warn");
             const text = new fabric.IText('نص جديد', {
                 left: canvas.width / 2, top: canvas.height / 2,
-                fontFamily: 'Cairo', fontSize: 40, fill: '#ffffff',
+                fontFamily: 'Mohammad Bold Art', fontSize: 40, fill: '#ffffff',
                 originX: 'center', originY: 'center',
                 customType: 'text'
             });
@@ -2499,6 +2502,8 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
         var c = cvs(); if (!c) return;
         var s = SF();
         c.getObjects().slice().forEach(function (o) { if (o.__amKey) c.remove(o); });
+        // أثناء إعادة البناء لا يجوز أن يبقى وسم القالب السابق: من يراقبه ينتظر اكتمال الطبقات فعلاً
+        try { c.__amTplId = ''; } catch (e) {}
         c.discardActiveObject();
         function fin() { if (typeof updateLayersList === 'function') updateLayersList(); c.requestRenderAll(); }
 
@@ -2514,14 +2519,16 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
                 var f = lay[k]; if (!f) return;
                 var txt = new fabric.IText(String(f.text || ''), {
                     left: f.x * s, top: f.y * s, originX: 'center', originY: 'center',
-                    fontFamily: f.font || 'Cairo', fontSize: Math.max(6, (f.fs || 40) * s),
+                    fontFamily: f.font || 'Mohammad Bold Art', fontSize: Math.max(6, (f.fs || 40) * s),
                     fill: f.fill || DARK, textAlign: 'center', customType: 'text', __amKey: k,
                     mappedColumn: f.col || guess(k)
                 });
                 c.add(txt);
             });
+            try { c.__amTplId = curTpl ? curTpl.id : (t.id || ''); } catch (e) {}
             try { if (c.moveObjectTo) c.moveObjectTo(img, 0); else for (var q = 0; q < 3; q++) c.sendBackwards(img); } catch (e) {}
             fin();
+            adoptFont();
             if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { var cc = cvs(); if (cc) cc.requestRenderAll(); });
         });
     }
@@ -2548,11 +2555,14 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
             } catch (e) {}
         }
         if (!blob) { note('تعذّر جلب القالب — افتحي الصفحة من رابط GitHub Pages (لا من ملف محلي) أو ارفعي الصورة يدوياً.', 'warn'); return; }
+        var e0 = window.__amEpoch || 0;
         if (!loadIntoUploader(blob, t.file)) { note('تعذّر تمرير الملف لأداة الرفع.', 'danger'); return; }
-        var c = await waitFor(function () { var x = cvs(); return (x && x.backgroundImage) ? x : null; }, 12000);
+        // ننتظر كانفس هذه الرفعة تحديداً: الخلفية السابقة كانت تُقنع الانتظار بأنها جاهزة فتُبنى الطبقات على كانفس سيُرمى
+        var c = await waitFor(function () { var x = cvs(); return (x && x.backgroundImage && (window.__amEpoch || 0) > e0) ? x : null; }, 15000);
         if (!c) { note('لم يُحمَّل القالب على اللوحة.', 'danger'); return; }
         curId = t.id; curTpl = t;
         ensureHooks(); render();
+        try { c.__amTplId = ''; } catch (e) {}
         if (window.innerWidth <= 900) { var tb0 = document.querySelector('.tab[data-view-target="canvas"]'); if (tb0 && tb0.offsetParent !== null) tb0.click(); }
         var s0 = SF();
         if (!t.w || !t.h) { t.w = Math.round(c.width / s0); t.h = Math.round(c.height / s0); }
@@ -2570,15 +2580,30 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
             r.onsuccess = function () { res(r.result); }; r.onerror = function () { rej(r.error); };
         });
     }
-    async function idbPut(k, blob) { var d = await idb(); return new Promise(function (res, rej) { var t = d.transaction(IDB, 'readwrite'); t.objectStore(IDB).put(blob, k); t.oncomplete = res; t.onerror = function () { rej(t.error); }; }); }
-    async function idbGet(k) { var d = await idb(); return new Promise(function (res) { var t = d.transaction(IDB, 'readonly'), q = t.objectStore(IDB).get(k); q.onsuccess = function () { res(q.result || null); }; q.onerror = function () { res(null); }; }); }
-    async function idbAll() { var d = await idb(); return new Promise(function (res) { var t = d.transaction(IDB, 'readonly'), q = t.objectStore(IDB).getAllKeys(); q.onsuccess = function () { res(q.result || []); }; q.onerror = function () { res([]); }; }); }
-    async function idbDel(k) { var d = await idb(); return new Promise(function (res) { var t = d.transaction(IDB, 'readwrite'); t.objectStore(IDB).delete(k); t.oncomplete = res; t.onerror = res; }); }
+    /* كل عملية تُغلق اتصالها وتُكمل ولو أُلغيت الصفقة (onabort/onerror): وإلا بقي الانتظار معلَّقاً،
+       فيبدو القالب محذوفاً في الواجهة ثم يعود بعد إعادة التحميل. */
+    function idbTx(mode, fn, fallback) {
+        return idb().then(function (d) {
+            return new Promise(function (res) {
+                var out = fallback, done = false;
+                var t = d.transaction(IDB, mode), st = t.objectStore(IDB);
+                fn(st, function (v) { out = v; });
+                var fin = function () { if (done) return; done = true; try { d.close(); } catch (e) {} res(out); };
+                t.oncomplete = fin; t.onabort = fin; t.onerror = fin;
+                setTimeout(fin, 4000);
+            });
+        }, function () { return fallback; });
+    }
+    function idbPut(k, blob) { return idbTx('readwrite', function (st, set) { st.put(blob, k); set(true); }, false); }
+    function idbGet(k) { return idbTx('readonly', function (st, set) { var q = st.get(k); q.onsuccess = function () { set(q.result || null); }; }, null); }
+    function idbAll() { return idbTx('readonly', function (st, set) { var q = st.getAllKeys(); q.onsuccess = function () { set(q.result || []); }; }, []); }
+    function idbDel(k) { return idbTx('readwrite', function (st, set) { st.delete(k); set(true); }, false); }
+    var urlCache = {};
     async function publicList() {
         var keys = (await idbAll()).slice().sort(), out = [];
         for (var i = 0; i < keys.length; i++) {
             var name = String(keys[i]), blob = await idbGet(name); if (!blob) continue;
-            out.push({ id: 'pub:' + name, t: name.replace(/\.[a-z0-9]+$/i, ''), file: name, w: 0, h: 0, photo: null, ink: [DARK, DARK, DARK], url: URL.createObjectURL(blob), pub: true });
+            out.push({ id: 'pub:' + name, t: name.replace(/\.[a-z0-9]+$/i, ''), file: name, w: 0, h: 0, photo: null, ink: [DARK, DARK, DARK], url: urlCache[name] || (urlCache[name] = URL.createObjectURL(blob)), pub: true });
         }
         return out;
     }
@@ -2604,6 +2629,52 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
         var w = function () { var r = orig.apply(this, arguments); setTimeout(remap, 30); return r; };
         w.__amWrapped = 1; window.updateColumnDropdowns = w;
     })();
+
+    /* ---- الخط الرسمي: تحميله ثم إعادة قياس النص، وترقية التخطيطات المحفوظة القديمة مرة واحدة ---- */
+    var FONT = 'Mohammad Bold Art', LEGACY = ["Cairo", "Tajawal", "Almarai"], fbk = 'Cairo';
+    function fontLoaded() {
+        if (!(document.fonts && document.fonts.load)) return Promise.resolve(false);
+        // لو ملف الخط غير موجود بعد تُرفض الوعود بخطأ شبكة: نبتلعها وإلا ظهرت كخطأ في الطرفية عند كل تحميل
+        var q = Promise.all(['400 40px', '700 40px'].map(function (m) {
+            try {
+                var p = document.fonts.load(m + ' "' + FONT + '"');
+                return (p && p.catch) ? p.catch(function () { return null; }) : p;
+            } catch (e) { return null; }
+        })).catch(function () { return null; });
+        return q.then(function () {
+            try { return document.fonts.check('40px "' + FONT + '"'); } catch (e) { return false; }
+        }, function () { return false; });
+    }
+    function remeasureText() {
+        var c = cvs(); if (!c) return;
+        c.getObjects().forEach(function (o) { if (o.type === 'i-text' && o.initDimensions) { try { o.initDimensions(); } catch (e) {} } });
+        c.requestRenderAll();
+        if (typeof updateLayersList === 'function') { try { updateLayersList(); } catch (e) {} }
+    }
+    function adoptFont() {
+        return fontLoaded().then(function (ok) {
+            if (ok) remeasureText();
+            return ok;
+        });
+    }
+    (function () {
+        var changed = false;
+        try {
+            if (!localStorage.getItem(LSK + '.fontv')) {
+                // نعدّل الكائن المستعمل فعلاً (layouts) لا نسخة مقروءة من جديد، وإلا بقي البناء على الخط القديم
+                Object.keys(layouts).forEach(function (k) {
+                    var L = layouts[k]; if (!L || typeof L !== 'object') return;
+                    ['name', 'number', 'expiry'].forEach(function (key) {
+                        var f = L[key];
+                        if (f && (!f.font || LEGACY.indexOf(f.font) >= 0)) { f.font = FONT; changed = true; }
+                    });
+                });
+                if (changed) store.write(layouts);
+                try { localStorage.setItem(LSK + '.fontv', FONT); } catch (e) {}
+            }
+        } catch (e) {}
+    })();
+    adoptFont();
 
     /* ---- حفظ تخطيط القالب بعد كل تحريك ---- */
     var saveT = 0;
@@ -2650,27 +2721,38 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
         render();
         return true;
     }
+    var pickQ = Promise.resolve();
+    function queueWork(fn) { var r = pickQ.then(fn).catch(function () {}); pickQ = r; return r; }
+    function pick2(t) { return queueWork(function () { return pick(t); }); }
     async function onsel(sel) {
         var v = sel.value;
         if (v === '+add') { sel.value = curId || ''; addInput.click(); return; }
         if (v === '+del') {
             sel.value = curId || '';
             var k = String(curId || '').replace('pub:', ''); if (!k) return;
-            await idbDel(k); delete layouts[curId]; store.write(layouts);
-            if (curTpl && curTpl.url) { try { URL.revokeObjectURL(curTpl.url); } catch (e) {} }
-            curId = null; curTpl = null; render();
+            await queueWork(async function () {
+                await idbDel(k);
+                if (await idbGet(k)) await idbDel(k);          // إن تعذّر الحذف من أوّل مرة (متصفّح مغلق/مشروع)
+                delete layouts[curId]; store.write(layouts);
+                if (curTpl && curTpl.url) { try { URL.revokeObjectURL(curTpl.url); } catch (e) {} }
+                curId = null; curTpl = null; render();
+            });
             if (typeof toast === 'function') toast('حُذف القالب من هذا المتصفح (ما خرج من بطاقات لا يُمسّ).', 'ok');
             return;
         }
         var t = findTpl(v);
         if (!t) { pubCache = await publicList(); t = findTpl(v); }
-        if (t) await pick(t);
+        if (t) await pick2(t);
         else render();
     }
     async function render() {
         if (!host) return;
         var sel = host.querySelector('#amTplSel'); if (!sel) return;
         pubCache = await publicList();
+        // إن كانت القائمة مطابقة تماماً نتوقف عن إعادة البناء: لا وميض ولا سباق مع من يقرأ الخيارات الآن
+        var sig = pubCache.map(function (x) { return x.id; }).join('|') + '#' + (curId || '') + '#' + (layouts && Object.keys(layouts).length);
+        if (host.getAttribute('data-sig') === sig) { recSel(); return; }
+        host.setAttribute('data-sig', sig);
         var h = '<option value=""' + (curId ? '' : ' selected') + '>— اختاري قالب البطاقة —</option>';
         h += '<optgroup label="خاصة · عضويات الجمعية (' + TPL.length + ')">';
         for (var i = 0; i < TPL.length; i++) h += opt(TPL[i]);
@@ -2701,7 +2783,7 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
         try { await idbPut(key, f); } catch (e) { if (typeof toast === 'function') toast('تعذّر حفظ القالب في المتصفح.', 'danger'); return; }
         tab = 'public';
         var items = await publicList(), t = items.filter(function (x) { return x.file === key; })[0];
-        if (t) { t.w = 0; await pick(t); }
+        if (t) { t.w = 0; await pick2(t); }
         addInput.value = '';
     });
 
@@ -2863,5 +2945,5 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
 })();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a32cd51ded89ed20',t:'MTc4ODAxOTg5NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a32d3fefe8c6edbe',t:'MTc4ODAyNDI3MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
