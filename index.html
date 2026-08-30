@@ -1291,6 +1291,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
   <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol>
   <symbol id="i-crop" viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14" /> <path d="M18 22V8a2 2 0 0 0-2-2H2" /></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect width="13" height="13" x="9" y="9" rx="2" /> <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></symbol>
+  <symbol id="i-align-justify" viewBox="0 0 24 24"><path d="M3 12h18" /> <path d="M3 18h18" /> <path d="M3 6h18" /></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
   <symbol id="i-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /> <path d="M3 3v5h5" /></symbol>
 </defs>
@@ -1672,8 +1673,16 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                         <button class="btn-align" data-align="right" title="محاذاة لليمين" aria-label="محاذاة لليمين"><svg class="ic" aria-hidden="true"><use href="#i-align-right"></use></svg></button>
                         <button class="btn-align" data-align="center" title="توسيط" aria-label="توسيط"><svg class="ic" aria-hidden="true"><use href="#i-align-center"></use></svg></button>
                         <button class="btn-align" data-align="left" title="محاذاة لليسار" aria-label="محاذاة لليسار"><svg class="ic" aria-hidden="true"><use href="#i-align-left"></use></svg></button>
+                        <button class="btn-align" data-align="justify" title="ضبط (توزيع الأسطر بالكشيدة)" aria-label="ضبط النص"><svg class="ic" aria-hidden="true"><use href="#i-align-justify"></use></svg></button>
                     </div>
                 </div>
+            </div>
+
+            <!-- D20 · الكشيدة: مدّ الحروف المتصلة لضبط عربي احترافي -->
+            <div class="prop-group" id="prop-kashida" style="display: none;">
+                <label for="elemKashida">الكشيدة (مدّ الحروف) · <span class="prop-value"><span id="kashidaVal">100</span>%</span></label>
+                <input type="range" id="elemKashida" min="0" max="100" step="5" value="100">
+                <p class="prop-hint">مع وضع «الضبط»: تمدّ الحروف العربية المتصلة لملء السطر بدل تباعد الكلمات — 100% ضبط كامل بالكشيدة، 0% تباعد كلمات فقط.</p>
             </div>
 
             <div class="prop-group">
@@ -1804,6 +1813,134 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             return !!(o && (o.type === 'i-text' || o.type === 'textbox'));
         }
 
+        // ==== D20 · الكشيدة والضبط الاحترافي للنص العربي ====
+        // حروف لا تُمدّ بعدها الكشيدة (لا تتصل بالحرف التالي)
+        var AM_NO_KASHIDA_AFTER = { 'ا': 1, 'أ': 1, 'إ': 1, 'آ': 1, 'د': 1, 'ذ': 1, 'ر': 1, 'ز': 1, 'و': 1, 'ء': 1, 'ة': 1, 'ى': 1 };
+        function amIsArabicChar(ch) {
+            return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/.test(ch);
+        }
+        function amStripTatweel(s) {
+            return String(s == null ? '' : s).replace(/\u0640/g, '');
+        }
+        var amMeasureCtx = null;
+        function amTextWidth(str, obj) {
+            try {
+                if (!amMeasureCtx) amMeasureCtx = document.createElement('canvas').getContext('2d');
+                var f = '';
+                if (obj.fontStyle && obj.fontStyle !== 'normal') f += obj.fontStyle + ' ';
+                if (obj.fontWeight && obj.fontWeight !== 'normal') f += obj.fontWeight + ' ';
+                f += (obj.fontSize || 20) + 'px "' + (obj.fontFamily || 'sans-serif') + '"';
+                amMeasureCtx.font = f;
+                if (amMeasureCtx.direction) { try { amMeasureCtx.direction = 'rtl'; } catch (e) {} }
+                return amMeasureCtx.measureText(str).width;
+            } catch (e) { return 0; }
+        }
+        // مواضع صالحة للكشيدة: بين حرفين عربيين متصلين (نفس الكلمة) وليس قبل علامة تشكيل
+        function amKashidaPositions(line) {
+            var pos = [];
+            for (var i = 0; i < line.length - 1; i++) {
+                var a = line[i], b = line[i + 1];
+                if (a === '\u0640' || b === '\u0640') continue;
+                if (!amIsArabicChar(a) || !amIsArabicChar(b)) continue;
+                if (AM_NO_KASHIDA_AFTER[a]) continue;
+                if (/[\u064B-\u065F\u0670\u06D6-\u06ED]/.test(b)) continue;
+                pos.push(i);
+            }
+            return pos;
+        }
+        // توزيع الكشيدة على مواضع السطر بالتساوي (بحد أقصى ٤ لكل موضع للشكل الطبيعي)
+        function amInsertTatweels(line, tats) {
+            if (!line || tats <= 0) return line;
+            var pos = amKashidaPositions(line);
+            if (!pos.length) return line;
+            var counts = {};
+            var per = Math.min(4, Math.ceil(tats / pos.length));
+            var used = 0;
+            outer:
+            for (var r = 0; r < per; r++) {
+                for (var j = 0; j < pos.length; j++) {
+                    if (used >= tats) break outer;
+                    counts[pos[j]] = (counts[pos[j]] || 0) + 1;
+                    used++;
+                }
+            }
+            // البناء من نهاية السطر كي لا تتغير مؤشرات الإدراج
+            var out = '';
+            for (var i = line.length - 1; i >= 0; i--) {
+                var n = counts[i] || 0;
+                while (n--) out = '\u0640' + out;
+                out = line[i] + out;
+            }
+            return out;
+        }
+        // يعيد ضبط النص بالكشيدة حسب عرضه الحالي — النص النظيف يُحفظ في __cleanText
+        function applyKashida(obj) {
+            if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
+            var clean = (obj.__cleanText != null) ? obj.__cleanText : amStripTatweel(obj.text);
+            obj.__cleanText = clean;
+            var strength = (typeof obj.__kashida === 'number') ? obj.__kashida : 100;
+            var hasArabic = /[\u0600-\u06FF]/.test(clean);
+            if (obj.textAlign !== 'justify' || !hasArabic || strength <= 0 || obj.isEditing) {
+                if (obj.text !== clean) obj.set('text', clean);   // تنظيف أي كشيدة سابقة
+                return;
+            }
+            obj.set('text', clean);                                // إعادة التغليف بالعرض الحالي
+            if (obj.initDimensions) { try { obj.initDimensions(); } catch (e) {} }
+            var lines = obj.textLines || [];
+            var widths = obj.__lineWidths || [];                   // قياس fabric نفسه (دقيق)
+            if (lines.length <= 1) return;                         // سطر واحد: لا ضبط
+            var tatWidth = amTextWidth('\u0640', obj) || (obj.fontSize || 20) * 0.45;
+            if (tatWidth <= 0) return;
+            var target = obj.width - (obj.padding || 0) * 2;
+            var out = [];
+            for (var i = 0; i < lines.length; i++) {
+                var ln = lines[i];
+                if (i === lines.length - 1) { out.push(ln); continue; }   // آخر سطر لا يُمدّ
+                var deficit = target - (widths[i] || 0);
+                if (deficit <= 1) { out.push(ln); continue; }
+                var want = deficit * strength / 100;
+                var tats = Math.floor(want / tatWidth);
+                if (tats < 1 && want > tatWidth * 0.6) tats = 1;
+                if (tats <= 0) { out.push(ln); continue; }
+                if (tats > 40) tats = 40;                          // حد أقصى معقول للتمديد
+                out.push(amInsertTatweels(ln, tats));
+            }
+            var joined = out.join('\n');
+            if (joined !== obj.text) obj.set('text', joined);
+            // جولة تصحيح واحدة: القياس يتغيّر قليلاً بعد التشكيل — نملأ أي فجوة متبقية
+            if (obj.initDimensions) { try { obj.initDimensions(); } catch (e) {} }
+            var lw2 = obj.__lineWidths || [];
+            var ln2s = obj.textLines || [];
+            var again = [];
+            var changed2 = false;
+            for (var j = 0; j < ln2s.length; j++) {
+                var cur = ln2s[j];
+                if (j === ln2s.length - 1) { again.push(cur); continue; }
+                var def2 = (target - (lw2[j] || 0)) * strength / 100;
+                if (def2 > 2 * tatWidth) {
+                    var t2 = Math.min(8, Math.max(1, Math.floor(def2 / tatWidth)));
+                    var nln = amInsertTatweels(cur, t2);
+                    if (nln !== cur) changed2 = true;
+                    again.push(nln);
+                } else {
+                    again.push(cur);
+                }
+            }
+            if (changed2) {
+                var joined2 = again.join('\n');
+                if (joined2 !== obj.text) obj.set('text', joined2);
+            }
+        }
+        function kashidaAll() {
+            var c = (typeof canvas !== 'undefined' && canvas) ? canvas : null;
+            if (!c) return;
+            var any = false;
+            c.getObjects().forEach(function (o) {
+                if (o.type === 'i-text' || o.type === 'textbox') { applyKashida(o); any = true; }
+            });
+            if (any) c.requestRenderAll();
+        }
+
         // ==== D1 · أدوات واجهة بحتة (لا تشارك في أي حساب أو توليد) ====
         function ic(name, cls) {
             return '<svg class="' + (cls || 'ic') + '" aria-hidden="true"><use href="#i-' + name + '"></use></svg>';
@@ -1887,6 +2024,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             elemColumn: document.getElementById('elemColumn'),
             elemFont: document.getElementById('elemFont'),
             elemFontSize: document.getElementById('elemFontSize'),
+            elemKashida: document.getElementById('elemKashida'),
             elemColor: document.getElementById('elemColor'),
             elemColor2: document.getElementById('elemColor2'),
             fillType: document.getElementById('fillType'),
@@ -1932,6 +2070,20 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             canvas.on('object:rotating', onMaskedObjectMove);
             canvas.on('object:scaling', onTextScaling);
             canvas.on('object:modified', onTextModified);
+            // أثناء التحرير المباشر (نقر مزدوج): نعرض النص النظيف، وبعد الخروج نعيد الكشيدة
+            canvas.on('text:editing:entered', function (e) {
+                var o = e && e.target;
+                if (!o || o.textAlign !== 'justify') return;
+                o.set('text', (o.__cleanText != null) ? o.__cleanText : amStripTatweel(o.text));
+                canvas.renderAll();
+            });
+            canvas.on('text:editing:exited', function (e) {
+                var o = e && e.target;
+                if (!o) return;
+                o.__cleanText = amStripTatweel(o.text);
+                applyKashida(o);
+                canvas.renderAll();
+            });
             canvas.on('object:added', histPushSoon);
             canvas.on('object:removed', histPushSoon);
             canvas.on('object:modified', histPushSoon);
@@ -2017,6 +2169,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 if (window.__fitCanvas) window.__fitCanvas();
                 try { canvas.__psdW = psd.width; canvas.__psdH = psd.height; canvas.__psdScale = s; } catch (e) {}
                 var n = addPsdChildren(psd.children || [], s);
+                kashidaAll();
                 canvas.discardActiveObject();
                 canvas.renderAll();
                 try { if (typeof histReset === 'function') histReset(); } catch (e) {}
@@ -2460,6 +2613,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             document.getElementById('prop-font').style.display = 'none';
             document.getElementById('prop-font-size').style.display = 'none';
             document.getElementById('prop-color-group').style.display = 'none';
+            document.getElementById('prop-kashida').style.display = 'none';
             document.getElementById('prop-mask').style.display = 'none';
             dom.propClipping.style.display = 'none';
             // أثناء وضع الاقتصاص لا نخفي قسم الاقتصاص (تحديد الإطار يطلق أحداث تحديد)
@@ -2481,9 +2635,14 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 document.getElementById('prop-font').style.display = 'block';
                 document.getElementById('prop-font-size').style.display = 'block';
                 document.getElementById('prop-color-group').style.display = 'block';
-                dom.elemText.value = obj.text;
+                document.getElementById('prop-kashida').style.display = 'block';
+                dom.elemText.value = (obj.__cleanText != null) ? obj.__cleanText : amStripTatweel(obj.text);
                 dom.elemFont.value = obj.fontFamily;
                 dom.elemFontSize.value = Math.round(obj.fontSize);
+                var kv = (typeof obj.__kashida === 'number') ? obj.__kashida : 100;
+                dom.elemKashida.value = kv;
+                var kvEl = document.getElementById('kashidaVal');
+                if (kvEl) kvEl.textContent = kv + '%';
                 setUIFromFill(obj.fill);
                 updateAlignBtns(obj.textAlign);
             } else if (obj.type === 'rect' || obj.type === 'circle' || obj.type === 'triangle' || obj.type === 'polygon' || obj.type === 'path') {
@@ -2687,7 +2846,12 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 
         dom.elemText.addEventListener('input', (e) => {
             const obj = canvas.getActiveObject();
-            if(obj && isTextObj(obj)) { obj.set('text', e.target.value); canvas.renderAll(); updateLayersList(); }
+            if(obj && isTextObj(obj)) {
+                obj.__cleanText = e.target.value;      // النص النظيف كما كتبته
+                applyKashida(obj);
+                canvas.renderAll(); updateLayersList();
+                if (typeof histPushSoon === 'function') histPushSoon();
+            }
         });
         dom.elemMask.addEventListener('change', (e) => {
             const obj = canvas.getActiveObject();
@@ -2804,8 +2968,13 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         function onTextModified(e) {
             const obj = e && e.target;
             if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
-            if (obj.scaleX === 1 && obj.scaleY === 1) return;
+            if (obj.scaleX === 1 && obj.scaleY === 1) {
+                // تغيّر حجم الصندوق (مقبض العرض) أو أي تعديل — نعيد الضبط بالعرض الجديد
+                applyKashida(obj);
+                return;
+            }
             onTextScaling(e);
+            applyKashida(obj);
         }
 
         dom.elemColumn.addEventListener('change', (e) => {
@@ -2821,11 +2990,23 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         });
         dom.elemFont.addEventListener('change', (e) => {
             const obj = canvas.getActiveObject();
-            if(obj && isTextObj(obj)) { obj.set('fontFamily', e.target.value); canvas.renderAll(); }
+            if(obj && isTextObj(obj)) { obj.set('fontFamily', e.target.value); applyKashida(obj); canvas.renderAll(); }
         });
         dom.elemFontSize.addEventListener('input', (e) => {
             const obj = canvas.getActiveObject();
-            if(obj && isTextObj(obj)) { obj.set('fontSize', parseInt(e.target.value)); canvas.renderAll(); }
+            if(obj && isTextObj(obj)) { obj.set('fontSize', parseInt(e.target.value)); applyKashida(obj); canvas.renderAll(); }
+        });
+        dom.elemKashida.addEventListener('input', (e) => {
+            const obj = canvas.getActiveObject();
+            if (!obj || !isTextObj(obj)) return;
+            obj.__kashida = parseInt(e.target.value) || 0;
+            const v = document.getElementById('kashidaVal');
+            if (v) v.textContent = obj.__kashida + '%';
+            applyKashida(obj);
+            canvas.renderAll();
+        });
+        dom.elemKashida.addEventListener('change', (e) => {
+            if (typeof histPushSoon === 'function') histPushSoon();
         });
 
         function setUIFromFill(fill) {
@@ -2895,8 +3076,10 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 const obj = canvas.getActiveObject();
                 if(obj && isTextObj(obj)) {
                     obj.set('textAlign', align);
+                    applyKashida(obj);
                     canvas.renderAll();
                     updateAlignBtns(align);
+                    if (typeof histPushSoon === 'function') histPushSoon();
                 }
             });
         });
@@ -2911,7 +3094,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 
         /* ==== D11 · تراجع / إعادة عام + حذف البطاقة الخلفية ==== */
         var histStack = [], histIdx = -1, histSuppress = 0, histTimer = 0;
-        var HIST_PROPS = ['__maskFix', 'maskType', 'customType', 'mappedColumn', 'placeholderBounds', '__amKey', 'lockUniScaling'];
+        var HIST_PROPS = ['__maskFix', 'maskType', 'customType', 'mappedColumn', 'placeholderBounds', '__amKey', 'lockUniScaling', '__cleanText', '__kashida'];
         function histSnapshot() {
             try { return JSON.stringify(canvas.toJSON(HIST_PROPS)); } catch (e) { return null; }
         }
@@ -2947,6 +3130,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                     }
                 }
             });
+            kashidaAll();
             canvas.requestRenderAll();
         }
         function histRestore(s) {
@@ -3011,7 +3195,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             }
             obj.clone(function (cl) {
                 cl.set({ left: (obj.left || 0) + dx, top: (obj.top || 0) + dy });
-                ['customType', 'layerName', 'mappedColumn', 'maskType', 'placeholderBounds', 'hueOffset', 'satOffset', 'lightOffset', '__psdLayer'].forEach(function (k) {
+                ['customType', 'layerName', 'mappedColumn', 'maskType', 'placeholderBounds', 'hueOffset', 'satOffset', 'lightOffset', '__psdLayer', '__cleanText', '__kashida'].forEach(function (k) {
                     if (obj[k] !== undefined) cl[k] = obj[k];
                 });
                 cl.__amKey = null;   // النسخة عنصر مستقل لا يرتبط بقالب
@@ -3064,6 +3248,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             obj.set(AM_COPIED_FORMAT);
             obj.set('dirty', true);
             if (obj.initDimensions) { try { obj.initDimensions(); } catch (e) {} }
+            applyKashida(obj);
             canvas.renderAll();
             if (typeof updateLayersList === 'function') updateLayersList();
             if (typeof histPushSoon === 'function') histPushSoon();
@@ -3202,7 +3387,8 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                     if (obj.mappedColumn && row[obj.mappedColumn] !== undefined) {
                         const val = row[obj.mappedColumn].toString();
                         if (obj.type === 'i-text' || obj.type === 'textbox') {
-                            obj.set('text', val);
+                            obj.__cleanText = val;
+                            applyKashida(obj);
                         } else if (obj.type === 'image' && (obj.customType === 'image' || obj.customType === 'dynamicImage')) {
                             const imgDataUrl = findLocalImage(val);
                             if (!imgDataUrl && val) missing.push(val);
@@ -4157,7 +4343,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         // أثناء إعادة البناء لا يجوز أن يبقى وسم القالب السابق: من يراقبه ينتظر اكتمال الطبقات فعلاً
         try { c.__amTplId = ''; } catch (e) {}
         c.discardActiveObject();
-        function fin() { if (typeof updateLayersList === 'function') updateLayersList(); c.requestRenderAll(); }
+        function fin() { kashidaAll(); if (typeof updateLayersList === 'function') updateLayersList(); c.requestRenderAll(); }
 
         var P = lay.photo, box = Math.max(24, Math.round((P.box || 300) * s));
         fabric.Image.fromURL(phSvg(box), function (img) {
@@ -4345,6 +4531,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
     function remeasureText() {
         var c = cvs(); if (!c) return;
         c.getObjects().forEach(function (o) { if (isTextObj(o) && o.initDimensions) { try { o.initDimensions(); } catch (e) {} } });
+        kashidaAll();
         c.requestRenderAll();
         if (typeof updateLayersList === 'function') { try { updateLayersList(); } catch (e) {} }
     }
@@ -4644,5 +4831,5 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 })();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3357a456dff4bdf',t:'MTc4ODExMDU0Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a335b34d7a864f74',t:'MTc4ODExMjg4Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
