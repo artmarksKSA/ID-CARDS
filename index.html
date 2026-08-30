@@ -1835,6 +1835,16 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 return amMeasureCtx.measureText(str).width;
             } catch (e) { return 0; }
         }
+        // عروض الأسطر بقياس fabric نفسه (يقيس كسولاً ويخزّن في __lineWidths)
+        function amLineWidths(obj, n) {
+            var out = [];
+            for (var i = 0; i < n; i++) {
+                var w = 0;
+                try { if (obj.getLineWidth) w = obj.getLineWidth(i); } catch (e) { w = 0; }
+                out.push(w || 0);
+            }
+            return out;
+        }
         // مواضع صالحة للكشيدة: بين حرفين عربيين متصلين (نفس الكلمة) وليس قبل علامة تشكيل
         function amKashidaPositions(line) {
             var pos = [];
@@ -1880,14 +1890,25 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             obj.__cleanText = clean;
             var strength = (typeof obj.__kashida === 'number') ? obj.__kashida : 100;
             var hasArabic = /[\u0600-\u06FF]/.test(clean);
-            if (obj.textAlign !== 'justify' || !hasArabic || strength <= 0 || obj.isEditing) {
-                if (obj.text !== clean) obj.set('text', clean);   // تنظيف أي كشيدة سابقة
+            // المحاذاة التي اختارها المستخدم (نحفظ «الضبط» في __align لأننا نرسم العربي يميناً)
+            var semAlign = obj.__align || obj.textAlign;
+            if (semAlign !== 'justify' || !hasArabic || strength <= 0 || obj.isEditing) {
+                // ليست ضبطاً عربياً: نظّف أي كشيدة ورتّب المحاذاة الفعلية
+                if (semAlign === 'justify') obj.textAlign = 'justify';   // لاتيني: ضبط بتباعد الكلمات
+                else if (obj.textAlign !== semAlign) obj.textAlign = semAlign;
+                if (obj.text !== clean) obj.set('text', clean);
                 return;
             }
+            // ضبط عربي احترافي: كشيدة تملأ السطور + محاذاة يمين
+            // (fabric يوجّه الحروف بمسار كامل التشكيل عند غير justify — لا انعكاس ولا تقطيع)
+            obj.__align = 'justify';
+            if (obj.textAlign !== 'right') obj.textAlign = 'right';
             obj.set('text', clean);                                // إعادة التغليف بالعرض الحالي
             if (obj.initDimensions) { try { obj.initDimensions(); } catch (e) {} }
             var lines = obj.textLines || [];
-            var widths = obj.__lineWidths || [];                   // قياس fabric نفسه (دقيق)
+            // قياس fabric نفسه (دقيق): getLineWidth يملأ __lineWidths كسولاً — لا نعتمد على
+            // _justifyGaps لأننا نرسم يميناً (مسار fillText كامل الحروف لسلامة التشكيل)
+            var widths = amLineWidths(obj, lines.length);
             if (lines.length <= 1) return;                         // سطر واحد: لا ضبط
             var tatWidth = amTextWidth('\u0640', obj) || (obj.fontSize || 20) * 0.45;
             if (tatWidth <= 0) return;
@@ -1909,8 +1930,8 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             if (joined !== obj.text) obj.set('text', joined);
             // جولة تصحيح واحدة: القياس يتغيّر قليلاً بعد التشكيل — نملأ أي فجوة متبقية
             if (obj.initDimensions) { try { obj.initDimensions(); } catch (e) {} }
-            var lw2 = obj.__lineWidths || [];
             var ln2s = obj.textLines || [];
+            var lw2 = amLineWidths(obj, ln2s.length);
             var again = [];
             var changed2 = false;
             for (var j = 0; j < ln2s.length; j++) {
@@ -2644,7 +2665,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 var kvEl = document.getElementById('kashidaVal');
                 if (kvEl) kvEl.textContent = kv + '%';
                 setUIFromFill(obj.fill);
-                updateAlignBtns(obj.textAlign);
+                updateAlignBtns(obj.__align || obj.textAlign);
             } else if (obj.type === 'rect' || obj.type === 'circle' || obj.type === 'triangle' || obj.type === 'polygon' || obj.type === 'path') {
                 document.getElementById('prop-color-group').style.display = 'block';
                 setUIFromFill(obj.fill);
@@ -3075,10 +3096,11 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 const align = btn.getAttribute('data-align');
                 const obj = canvas.getActiveObject();
                 if(obj && isTextObj(obj)) {
-                    obj.set('textAlign', align);
+                    obj.__align = align;                 // المحاذاة الدلالية (ضبط/يمين/وسط/يسار)
+                    obj.set('textAlign', align);         // applyKashida يضبطها للعربي عند اللزوم
                     applyKashida(obj);
                     canvas.renderAll();
-                    updateAlignBtns(align);
+                    updateAlignBtns(obj.__align || obj.textAlign);
                     if (typeof histPushSoon === 'function') histPushSoon();
                 }
             });
@@ -3094,7 +3116,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 
         /* ==== D11 · تراجع / إعادة عام + حذف البطاقة الخلفية ==== */
         var histStack = [], histIdx = -1, histSuppress = 0, histTimer = 0;
-        var HIST_PROPS = ['__maskFix', 'maskType', 'customType', 'mappedColumn', 'placeholderBounds', '__amKey', 'lockUniScaling', '__cleanText', '__kashida'];
+        var HIST_PROPS = ['__maskFix', 'maskType', 'customType', 'mappedColumn', 'placeholderBounds', '__amKey', 'lockUniScaling', '__cleanText', '__kashida', '__align'];
         function histSnapshot() {
             try { return JSON.stringify(canvas.toJSON(HIST_PROPS)); } catch (e) { return null; }
         }
@@ -3195,7 +3217,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             }
             obj.clone(function (cl) {
                 cl.set({ left: (obj.left || 0) + dx, top: (obj.top || 0) + dy });
-                ['customType', 'layerName', 'mappedColumn', 'maskType', 'placeholderBounds', 'hueOffset', 'satOffset', 'lightOffset', '__psdLayer', '__cleanText', '__kashida'].forEach(function (k) {
+                ['customType', 'layerName', 'mappedColumn', 'maskType', 'placeholderBounds', 'hueOffset', 'satOffset', 'lightOffset', '__psdLayer', '__cleanText', '__kashida', '__align'].forEach(function (k) {
                     if (obj[k] !== undefined) cl[k] = obj[k];
                 });
                 cl.__amKey = null;   // النسخة عنصر مستقل لا يرتبط بقالب
@@ -3235,7 +3257,8 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 charSpacing: obj.charSpacing,
                 fontWeight: obj.fontWeight,
                 fontStyle: obj.fontStyle,
-                fontStretch: obj.fontStretch
+                fontStretch: obj.fontStretch,
+                __align: obj.__align
             };
             var p = document.getElementById('btnPasteFormat');
             if (p) p.disabled = false;
@@ -3246,6 +3269,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             if (!obj || !isTextObj(obj)) return toast('حدّد نصاً أولاً.', 'warn');
             if (!AM_COPIED_FORMAT) return toast('انسخ تنسيقاً أولاً.', 'warn');
             obj.set(AM_COPIED_FORMAT);
+            if (AM_COPIED_FORMAT.__align) obj.__align = AM_COPIED_FORMAT.__align;
             obj.set('dirty', true);
             if (obj.initDimensions) { try { obj.initDimensions(); } catch (e) {} }
             applyKashida(obj);
@@ -4831,5 +4855,5 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 })();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a335b34d7a864f74',t:'MTc4ODExMjg4Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a335ee550e550ea1',t:'MTc4ODExNTMwMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
