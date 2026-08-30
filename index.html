@@ -1786,6 +1786,17 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             });
         });
 
+        // إبقاء نسبة الصورة ثابتة دائماً: قفل التحجيم الموحّد + إخفاء مقابض الجوانب
+        // (تبقى مقابض الزوايا فقط، فالتكبير/التصغير لا يشوّه الأبعاد أبداً)
+        function lockImageRatio(img) {
+            if (!img) return;
+            img.lockUniScaling = true;
+            // إخفاء مقابض الجوانب: يبقى التحجيم من الزوايا فقط (نسبي دائماً)
+            if (img.setControlVisible) ['ml', 'mr', 'mt', 'mb'].forEach(function (n) { img.setControlVisible(n, false); });
+            else if (img.setControlsVisibility) img.setControlsVisibility({ mt: false, mb: false, ml: false, mr: false });
+            img.set('dirty', true);
+        }
+
         document.getElementById('addTextBtn').addEventListener('click', () => {
             if(!canvas) return toast("ارفع صورة القالب أولاً من اللوحة الأولى", "warn");
             const text = new fabric.IText('نص جديد', {
@@ -1816,6 +1827,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                             customType: 'image', lockUniScaling: true
                         });
                         img.scaleToWidth(150);
+                        lockImageRatio(img);
                         canvas.add(img);
                         canvas.setActiveObject(img);
                         updateLayersList();
@@ -1835,6 +1847,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                     originX: 'center', originY: 'center',
                     customType: 'dynamicImage', lockUniScaling: true
                 });
+                lockImageRatio(img);
                 canvas.add(img);
                 canvas.setActiveObject(img);
                 updateLayersList();
@@ -2277,7 +2290,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             if (!canvas) return;
             canvas.getObjects().forEach(function (o) {
                 if (o.type === 'image' || o.customType === 'dynamicImage') {
-                    o.lockUniScaling = true;
+                    lockImageRatio(o);
                     if (o.maskType && o.maskType !== 'none' && o.clipPath) {
                         o.objectCaching = false;
                         var cp = o.clipPath;
@@ -2471,6 +2484,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                                     let scale = (obj.customType === 'dynamicImage') ? Math.max(boxW / newImg.width, boxH / newImg.height) : Math.min(boxW / newImg.width, boxH / newImg.height);
                                     obj.setElement(newImg.getElement());
                                     obj.set({ width: newImg.width, height: newImg.height, scaleX: scale, scaleY: scale, lockUniScaling: true });
+                                    lockImageRatio(obj);
                                     applyMaskToObject(obj);
                                     imagesLoaded++;
                                     checkResolve();
@@ -2808,9 +2822,25 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         document.querySelectorAll('.tab').forEach(function (tab) {
             tab.addEventListener('click', function () {
                 var v = tab.getAttribute('data-view-target');
+                var bar = document.querySelector('.tabbar');
+                var isMobile = !!bar && bar.offsetParent !== null;
+                if (isMobile && v === 'props') {
+                    // دمج تبويب الخصائص مع البطاقة: يفتح درج الخصائص فوق البطاقة
+                    // (تبقى البطاقة ظاهرة) بدل شاشة منفصلة تُخفيها — والنقر مرة أخرى يغلقه
+                    if (typeof window.__togglePropsDrawer === 'function') {
+                        var dr = document.getElementById('propsDrawer');
+                        window.__togglePropsDrawer(!(dr && dr.classList.contains('open')));
+                    }
+                    return;
+                }
                 body.setAttribute('data-view', v);
                 document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('is-active', t === tab); });
                 if (v === 'canvas' && window.__fitCanvas) window.__fitCanvas();
+                // عند مغادرة تبويب الخصائص (أدوات/بطاقة) يُغلق درج الخصائص إن كان مفتوحاً
+                if (isMobile && typeof window.__togglePropsDrawer === 'function') {
+                    var dr = document.getElementById('propsDrawer');
+                    if (dr && dr.classList.contains('open')) window.__togglePropsDrawer(false);
+                }
             });
         });
 
@@ -3084,6 +3114,8 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         var path = [];
         try { path = e.composedPath ? e.composedPath() : []; } catch (err) { path = []; }
         if (path.indexOf(drawer) >= 0 || path.indexOf(fab) >= 0) return;
+        // النقر على التبويبات (الخصائص/الأدوات/البطاقة) مقصود — لا يُغلق الدرج هنا
+        if (e.target && e.target.closest && e.target.closest('.tab')) return;
         setOpen(false);
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setOpen(false); });
@@ -3152,13 +3184,28 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         if (propsPanel && propsPanel.parentNode !== sidebar) sidebar.insertBefore(propsPanel, sidebar.querySelector('.panel--grow') || null);
     }
 
+    // دمج مع تبويب «الخصائص»: فتح الدرج فوق البطاقة يجعله التبويب النشط،
+    // وإغلاقه يعيد التبويب النشط لعرض البطاقة الحالي
+    function syncPropsTab() {
+        var bar = document.querySelector('.tabbar');
+        if (!bar || bar.offsetParent === null) return;
+        var open = drawer.classList.contains('open');
+        document.querySelectorAll('.tab[data-view-target]').forEach(function (t) {
+            var v = t.getAttribute('data-view-target');
+            t.classList.toggle('is-active', v === 'props' ? open : (open ? false : body.getAttribute('data-view') === v));
+        });
+    }
     function setOpen(open) {
         drawer.classList.toggle('open', !!open);
         drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
         fab.setAttribute('aria-expanded', open ? 'true' : 'false');
         if (open) { closeOther(); movePanelToDrawer(); } else { movePanelBack(); }
         if (open && typeof updateLayersList === 'function') updateLayersList();
+        syncPropsTab();
     }
+    window.__togglePropsDrawer = function (open) {
+        setOpen(open !== undefined ? !!open : !drawer.classList.contains('open'));
+    };
     fab.addEventListener('click', function () { setOpen(!drawer.classList.contains('open')); });
     var closeBtn = document.getElementById('propsDrawerClose');
     if (closeBtn) closeBtn.addEventListener('click', function () { setOpen(false); });
@@ -3167,6 +3214,8 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         var path = [];
         try { path = e.composedPath ? e.composedPath() : []; } catch (err) { path = []; }
         if (path.indexOf(drawer) >= 0 || path.indexOf(fab) >= 0) return;
+        // النقر على التبويبات (الخصائص/الأدوات/البطاقة) مقصود — لا يُغلق الدرج هنا
+        if (e.target && e.target.closest && e.target.closest('.tab')) return;
         setOpen(false);
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setOpen(false); });
@@ -3385,6 +3434,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 lockUniScaling: true,
                 mappedColumn: guess('photo'), placeholderBounds: { w: box, h: box }
             });
+            lockImageRatio(img);
             c.add(img); applyMaskToObject(img);
             ['name', 'number', 'expiry'].forEach(function (k) {
                 var f = lay[k]; if (!f) return;
@@ -3856,5 +3906,5 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 })();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a333ce887cb6b5aa',t:'MTc4ODA5MzAyNg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a333e3f28f58b5aa',t:'MTc4ODA5MzkwMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
