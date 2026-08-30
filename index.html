@@ -1290,6 +1290,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
   <symbol id="i-redo" viewBox="0 0 24 24"><path d="M21 7v6h-6" /> <path d="M3 17a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 14" /></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol>
   <symbol id="i-crop" viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14" /> <path d="M18 22V8a2 2 0 0 0-2-2H2" /></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="13" height="13" x="9" y="9" rx="2" /> <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
   <symbol id="i-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /> <path d="M3 3v5h5" /></symbol>
 </defs>
@@ -1498,9 +1499,35 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 خصائص العنصر
             </h3>
 
+            <!-- D18 · نسخ العنصر (تكرار) — يظهر مع أي عنصر محدد -->
+            <div class="prop-group" id="prop-dup">
+                <label>نسخ العنصر</label>
+                <p class="prop-hint">ينسخ العنصر المحدد (نصاً، صورة، شكلاً) بكل خصائصه — اختصار <b>Ctrl+D</b>.</p>
+                <button class="btn-secondary" id="btnDupObject">
+                    <svg class="ic" aria-hidden="true"><use href="#i-copy"></use></svg>
+                    نسخ العنصر (تكرار)
+                </button>
+            </div>
+
             <div class="prop-group" id="prop-text-content">
                 <label for="elemText">النص (محتوى ثابت)</label>
                 <textarea id="elemText" rows="2"></textarea>
+            </div>
+
+            <!-- D18 · نسخ تنسيق النص ولصقه (Format Painter) -->
+            <div class="prop-group" id="prop-text-format" style="display: none;">
+                <label>نسخ تنسيق النص</label>
+                <p class="prop-hint">انسخ تنسيق هذا النص (الخط، الحجم، اللون، المحاذاة) ثم اختر نصاً آخر واضغط «لصق التنسيق».</p>
+                <div class="stack">
+                    <button class="btn-secondary" id="btnCopyFormat">
+                        <svg class="ic" aria-hidden="true"><use href="#i-paintbrush"></use></svg>
+                        نسخ التنسيق
+                    </button>
+                    <button class="btn-secondary" id="btnPasteFormat" disabled>
+                        <svg class="ic" aria-hidden="true"><use href="#i-paintbrush"></use></svg>
+                        لصق التنسيق
+                    </button>
+                </div>
             </div>
 
             <div class="prop-group" id="prop-column">
@@ -2429,6 +2456,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             dom.noSelectionMsg.style.display = 'none';
             dom.propertiesPanel.style.display = 'block';
             document.getElementById('prop-text-content').style.display = 'none';
+            document.getElementById('prop-text-format').style.display = 'none';
             document.getElementById('prop-font').style.display = 'none';
             document.getElementById('prop-font-size').style.display = 'none';
             document.getElementById('prop-color-group').style.display = 'none';
@@ -2449,6 +2477,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             dom.elemColumn.value = obj.mappedColumn || '';
             if (isTextObj(obj)) {
                 document.getElementById('prop-text-content').style.display = 'block';
+                document.getElementById('prop-text-format').style.display = 'block';
                 document.getElementById('prop-font').style.display = 'block';
                 document.getElementById('prop-font-size').style.display = 'block';
                 document.getElementById('prop-color-group').style.display = 'block';
@@ -2954,6 +2983,91 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             var k = e.key.toLowerCase();
             if (k === 'z' && !e.shiftKey) { e.preventDefault(); histUndo(); }
             else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); histRedo(); }
+            else if (k === 'd') {
+                var _a = (typeof canvas !== 'undefined' && canvas && canvas.getActiveObject) ? canvas.getActiveObject() : null;
+                if (_a && _a.isEditing) return;   // أثناء تحرير النص: لا نكرر
+                e.preventDefault();               // نمنع «حفظ إشارة» في المتصفح
+                dupSelected();
+            }
+        });
+        // ==== D18 · نسخ العنصر (تكرار) + نسخ/لصق تنسيق النص ====
+        function dupSelected() {
+            var c = (typeof canvas !== 'undefined' && canvas) ? canvas : null;
+            if (!c) return;
+            var obj = c.getActiveObject();
+            if (!obj) return toast('حدّد عنصراً أولاً لتكراره.', 'warn');
+            // أثناء القص: ننهي وضع القص ونكرّر الصورة المستهدفة
+            if (window.__cropActive && typeof cancelCropMode === 'function') cancelCropMode();
+            obj = c.getActiveObject();
+            if (!obj) return;
+            var dx = 24, dy = 24;
+            function finalize(cl) {
+                c.add(cl);
+                c.setActiveObject(cl);
+                c.renderAll();
+                if (typeof updateLayersList === 'function') updateLayersList();
+                if (typeof histPushSoon === 'function') histPushSoon();
+                toast('تم نسخ العنصر.', 'ok');
+            }
+            obj.clone(function (cl) {
+                cl.set({ left: (obj.left || 0) + dx, top: (obj.top || 0) + dy });
+                ['customType', 'layerName', 'mappedColumn', 'maskType', 'placeholderBounds', 'hueOffset', 'satOffset', 'lightOffset', '__psdLayer'].forEach(function (k) {
+                    if (obj[k] !== undefined) cl[k] = obj[k];
+                });
+                cl.__amKey = null;   // النسخة عنصر مستقل لا يرتبط بقالب
+                if (cl.type === 'i-text' || cl.type === 'textbox') cl.lockUniScaling = true;
+                if (obj.clipPath) {
+                    // النسخ غير متزامن — ننتظر القناع ثم نضيف العنصر
+                    obj.clipPath.clone(function (cp) {
+                        try {
+                            cl.clipPath = cp;
+                            if (obj.__maskFix) {
+                                // قناع مثبّت على البطاقة: نزيحه مع النسخة ليبقى مقصوصاً بنفس الشكل
+                                var mx = obj.__maskFix.x + dx, my = obj.__maskFix.y + dy;
+                                cl.__maskFix = { x: mx, y: my };
+                                cp.set({ left: mx, top: my, absolutePositioned: true });
+                            }
+                            if (cl.maskType && cl.maskType !== 'none' && cp) cl.objectCaching = false;
+                        } catch (e) { cl.clipPath = null; }
+                        finalize(cl);
+                    });
+                } else {
+                    finalize(cl);
+                }
+            });
+        }
+        document.getElementById('btnDupObject').addEventListener('click', function () { dupSelected(); });
+        // نسخ تنسيق النص / لصقه
+        var AM_COPIED_FORMAT = null;
+        document.getElementById('btnCopyFormat').addEventListener('click', function () {
+            var obj = canvas && canvas.getActiveObject ? canvas.getActiveObject() : null;
+            if (!obj || !isTextObj(obj)) return toast('حدّد نصاً أولاً.', 'warn');
+            AM_COPIED_FORMAT = {
+                fontFamily: obj.fontFamily,
+                fontSize: obj.fontSize,
+                fill: obj.fill,
+                textAlign: obj.textAlign,
+                lineHeight: obj.lineHeight,
+                charSpacing: obj.charSpacing,
+                fontWeight: obj.fontWeight,
+                fontStyle: obj.fontStyle,
+                fontStretch: obj.fontStretch
+            };
+            var p = document.getElementById('btnPasteFormat');
+            if (p) p.disabled = false;
+            toast('تم نسخ تنسيق النص — اختر نصاً آخر واضغط «لصق التنسيق».', 'ok');
+        });
+        document.getElementById('btnPasteFormat').addEventListener('click', function () {
+            var obj = canvas && canvas.getActiveObject ? canvas.getActiveObject() : null;
+            if (!obj || !isTextObj(obj)) return toast('حدّد نصاً أولاً.', 'warn');
+            if (!AM_COPIED_FORMAT) return toast('انسخ تنسيقاً أولاً.', 'warn');
+            obj.set(AM_COPIED_FORMAT);
+            obj.set('dirty', true);
+            if (obj.initDimensions) { try { obj.initDimensions(); } catch (e) {} }
+            canvas.renderAll();
+            if (typeof updateLayersList === 'function') updateLayersList();
+            if (typeof histPushSoon === 'function') histPushSoon();
+            toast('تم تطبيق التنسيق على النص.', 'ok');
         });
         // حذف البطاقة الخلفية (القالب) — مع إشعار تراجع
         document.getElementById('btnDeleteCard').addEventListener('click', function () {
@@ -4530,5 +4644,5 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 })();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a335618bf8dcc99e',t:'MTc4ODEwOTUzNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3357a456dff4bdf',t:'MTc4ODExMDU0Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
