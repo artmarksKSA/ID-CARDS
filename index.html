@@ -1898,6 +1898,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             canvas.on('object:moving', onMaskedObjectMove);
             canvas.on('object:scaling', onMaskedObjectMove);
             canvas.on('object:rotating', onMaskedObjectMove);
+            canvas.on('object:scaling', onTextScaling);
             canvas.on('object:added', histPushSoon);
             canvas.on('object:removed', histPushSoon);
             canvas.on('object:modified', histPushSoon);
@@ -2021,7 +2022,8 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                         obj = new fabric.IText(str, {
                             left: (layer.left || 0) * s, top: (layer.top || 0) * s,
                             originX: 'left', originY: 'top',
-                            fontSize: Math.max(6, fs * s), fontFamily: ff, fill: fill
+                            fontSize: Math.max(6, fs * s), fontFamily: ff, fill: fill,
+                            lockUniScaling: true
                         });
                     }
                 }
@@ -2093,7 +2095,12 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             function pushClone(o) {
                 ready++;
                 o.clone(function (cl) {
-                    cl.set({ scaleX: (o.scaleX || 1) * k, scaleY: (o.scaleY || 1) * k, left: (o.left || 0) * k, top: (o.top || 0) * k });
+                    if (o.type === 'i-text') {
+                        // نص: نعيد رسمه بحجم خط حقيقي مضاعف (بدل تكبير صورة نقطية)
+                        cl.set({ fontSize: (o.fontSize || 1) * k, scaleX: 1, scaleY: 1, left: (o.left || 0) * k, top: (o.top || 0) * k });
+                    } else {
+                        cl.set({ scaleX: (o.scaleX || 1) * k, scaleY: (o.scaleY || 1) * k, left: (o.left || 0) * k, top: (o.top || 0) * k });
+                    }
                     if (o.clipPath) {
                         try {
                             cl.clipPath = o.clipPath.clone();
@@ -2191,7 +2198,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 left: canvas.width / 2, top: canvas.height / 2,
                 fontFamily: 'Mohammad Bold Art', fontSize: 40, fill: '#ffffff',
                 originX: 'center', originY: 'center',
-                customType: 'text'
+                customType: 'text', lockUniScaling: true
             });
             canvas.add(text);
             canvas.setActiveObject(text);
@@ -2733,6 +2740,23 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             obj.clipPath.set({ left: obj.__maskFix.x, top: obj.__maskFix.y, dirty: true });
         }
 
+        // رسم النص بحدة عالية عند أي تحجيم: بدل تكبير الصورة النقطية (فيصبح
+        // النص ضبابياً)، نحوّل مقياس التحجيم إلى حجم خط حقيقي وتُعاد كتابة
+        // الحروف بالحجم الجديد — فيبقى النص واضحاً بلا شوائب في كل المقاسات
+        // (على اللوحة وفي التصدير عالي الدقة).
+        function onTextScaling(e) {
+            const obj = e && e.target;
+            if (!obj || obj.type !== 'i-text') return;
+            if (obj.__cropRect || obj.clipPath && obj.clipPath.__amCrop) return;
+            const newSize = (obj.fontSize || 1) * Math.max(obj.scaleX || 1, obj.scaleY || 1);
+            if (newSize < 3 || newSize > 900) return;
+            const c = obj.getCenterPoint();
+            obj.set({ scaleX: 1, scaleY: 1, fontSize: Math.round(newSize * 100) / 100 });
+            obj.setPositionByOrigin(c, 'center', 'center');
+            obj.set('dirty', true);
+            if (typeof histPushSoon === 'function') histPushSoon();
+        }
+
         dom.elemColumn.addEventListener('change', (e) => {
             const obj = canvas.getActiveObject();
             if(obj) { 
@@ -2855,6 +2879,11 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         function repairLoadedCanvas() {
             if (!canvas) return;
             canvas.getObjects().forEach(function (o) {
+                if (o.type === 'i-text') {
+                    o.lockUniScaling = true;
+                    o.set('dirty', true);
+                    return;
+                }
                 if (o.type === 'image' || o.customType === 'dynamicImage') {
                     lockImageRatio(o);
                     if (o.maskType && o.maskType !== 'none' && o.clipPath) {
@@ -4010,7 +4039,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                     left: f.x * s, top: f.y * s, originX: 'center', originY: 'center',
                     fontFamily: f.font || 'Mohammad Bold Art', fontSize: Math.max(6, (f.fs || 40) * s),
                     fill: f.fill || DARK, textAlign: 'center', customType: 'text', __amKey: k,
-                    mappedColumn: f.col || guess(k)
+                    mappedColumn: f.col || guess(k), lockUniScaling: true
                 });
                 c.add(txt);
             });
@@ -4474,5 +4503,5 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 })();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a33471dba8c8b83b',t:'MTc4ODA5OTcxNg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a33536b70a62ee9d',t:'MTc4ODEwNzc3OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
