@@ -1772,6 +1772,11 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 
 <script>
         
+        // النصوص: نص حر (i-text) أو Textbox ملفوف — فحص مشترك (دالة عامة)
+        function isTextObj(o) {
+            return !!(o && (o.type === 'i-text' || o.type === 'textbox'));
+        }
+
         // ==== D1 · أدوات واجهة بحتة (لا تشارك في أي حساب أو توليد) ====
         function ic(name, cls) {
             return '<svg class="' + (cls || 'ic') + '" aria-hidden="true"><use href="#i-' + name + '"></use></svg>';
@@ -1816,7 +1821,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             await new Promise(function (r) { setTimeout(r, 40); });
             var url = canvas.toDataURL({ format: 'jpeg', quality: 0.97, multiplier: q / scaleFactor });
             var nm = "بطاقة";
-            var first = canvas.getObjects().filter(function (o) { return o.type === 'i-text' && o.text; })[0];
+            var first = canvas.getObjects().filter(function (o) { return isTextObj(o) && o.text; })[0];
             if (first) nm = String(first.text).split('\n')[0].trim().slice(0, 40);
             if (!nm) nm = "Card_" + Date.now();
             var blob = await (await fetch(url)).blob();
@@ -1899,6 +1904,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             canvas.on('object:scaling', onMaskedObjectMove);
             canvas.on('object:rotating', onMaskedObjectMove);
             canvas.on('object:scaling', onTextScaling);
+            canvas.on('object:modified', onTextModified);
             canvas.on('object:added', histPushSoon);
             canvas.on('object:removed', histPushSoon);
             canvas.on('object:modified', histPushSoon);
@@ -2019,9 +2025,12 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                             if (run.fontFamily) ff = run.fontFamily;
                             if (run.fillColor) { var fc = run.fillColor.value || run.fillColor; if (typeof fc === 'string') fill = fc; }
                         } catch (e) {}
-                        obj = new fabric.IText(str, {
+                        var psdW = ((layer.right || 0) - (layer.left || 0)) * s;
+                        if (!(psdW > 10)) psdW = Math.max(80, canvas.width - (layer.left || 0) * s - 30);
+                        obj = new fabric.Textbox(str, {
                             left: (layer.left || 0) * s, top: (layer.top || 0) * s,
                             originX: 'left', originY: 'top',
+                            width: psdW,
                             fontSize: Math.max(6, fs * s), fontFamily: ff, fill: fill,
                             lockUniScaling: true
                         });
@@ -2098,6 +2107,9 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                     if (o.type === 'i-text') {
                         // نص: نعيد رسمه بحجم خط حقيقي مضاعف (بدل تكبير صورة نقطية)
                         cl.set({ fontSize: (o.fontSize || 1) * k, scaleX: 1, scaleY: 1, left: (o.left || 0) * k, top: (o.top || 0) * k });
+                    } else if (o.type === 'textbox') {
+                        // نص ملفوف: نفس الشيء مع مضاعفة عرض الالتفاف
+                        cl.set({ fontSize: (o.fontSize || 1) * k, width: (o.width || 1) * k, scaleX: 1, scaleY: 1, left: (o.left || 0) * k, top: (o.top || 0) * k });
                     } else {
                         cl.set({ scaleX: (o.scaleX || 1) * k, scaleY: (o.scaleY || 1) * k, left: (o.left || 0) * k, top: (o.top || 0) * k });
                     }
@@ -2194,8 +2206,9 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 
         document.getElementById('addTextBtn').addEventListener('click', () => {
             if(!canvas) return toast("ارفع صورة القالب أولاً من اللوحة الأولى", "warn");
-            const text = new fabric.IText('نص جديد', {
+            const text = new fabric.Textbox('نص جديد', {
                 left: canvas.width / 2, top: canvas.height / 2,
+                width: Math.max(120, canvas.width - 60),
                 fontFamily: 'Mohammad Bold Art', fontSize: 40, fill: '#ffffff',
                 originX: 'center', originY: 'center',
                 customType: 'text', lockUniScaling: true
@@ -2371,7 +2384,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 const originalIndex = objects.length - 1 - reversedIndex;
                 let icon = 'shapes';
                 let name = 'عنصر';
-                if(obj.type === 'i-text') { icon = 'type'; name = obj.text.length > 14 ? obj.text.substring(0, 14) + '…' : obj.text; }
+                if(obj.type === 'i-text' || obj.type === 'textbox') { icon = 'type'; name = obj.text.length > 14 ? obj.text.substring(0, 14) + '…' : obj.text; }
                 else if(obj.type === 'image') { icon = 'image'; name = obj.customType === 'dynamicImage' ? 'صورة متغيرة' : (obj.customType === 'qr' ? 'رمز QR' : (obj.customType === 'psdLayer' ? (obj.layerName || 'طبقة PSD') : 'صورة')); }
                 else if(obj.customType === 'psdLayer') { icon = 'type'; name = obj.layerName || 'طبقة PSD'; }
                 else if(obj.type === 'rect') { icon = 'square'; name = 'مربع'; }
@@ -2434,7 +2447,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             dom.elemAngle.value = Math.round(obj.angle || 0);
             dom.angleVal.innerText = Math.round(obj.angle || 0);
             dom.elemColumn.value = obj.mappedColumn || '';
-            if (obj.type === 'i-text') {
+            if (isTextObj(obj)) {
                 document.getElementById('prop-text-content').style.display = 'block';
                 document.getElementById('prop-font').style.display = 'block';
                 document.getElementById('prop-font-size').style.display = 'block';
@@ -2645,7 +2658,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 
         dom.elemText.addEventListener('input', (e) => {
             const obj = canvas.getActiveObject();
-            if(obj && obj.type === 'i-text') { obj.set('text', e.target.value); canvas.renderAll(); updateLayersList(); }
+            if(obj && isTextObj(obj)) { obj.set('text', e.target.value); canvas.renderAll(); updateLayersList(); }
         });
         dom.elemMask.addEventListener('change', (e) => {
             const obj = canvas.getActiveObject();
@@ -2746,8 +2759,10 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         // (على اللوحة وفي التصدير عالي الدقة).
         function onTextScaling(e) {
             const obj = e && e.target;
-            if (!obj || obj.type !== 'i-text') return;
+            if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
             if (obj.__cropRect || obj.clipPath && obj.clipPath.__amCrop) return;
+            // في Textbox مقبض العرض (يمين/يسار) يغيّر عرض الالتفاف فقط ولا يغيّر scaleY — لا نلمس الحجم
+            if (obj.type === 'textbox' && (obj.scaleY || 1) === 1) return;
             const newSize = (obj.fontSize || 1) * Math.max(obj.scaleX || 1, obj.scaleY || 1);
             if (newSize < 3 || newSize > 900) return;
             const c = obj.getCenterPoint();
@@ -2755,6 +2770,13 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             obj.setPositionByOrigin(c, 'center', 'center');
             obj.set('dirty', true);
             if (typeof histPushSoon === 'function') histPushSoon();
+        }
+        // شبكة أمان: أي مقياس متبقٍ بعد انتهاء التحجيم يُحوَّل إلى حجم خط حقيقي
+        function onTextModified(e) {
+            const obj = e && e.target;
+            if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
+            if (obj.scaleX === 1 && obj.scaleY === 1) return;
+            onTextScaling(e);
         }
 
         dom.elemColumn.addEventListener('change', (e) => {
@@ -2770,11 +2792,11 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         });
         dom.elemFont.addEventListener('change', (e) => {
             const obj = canvas.getActiveObject();
-            if(obj && obj.type === 'i-text') { obj.set('fontFamily', e.target.value); canvas.renderAll(); }
+            if(obj && isTextObj(obj)) { obj.set('fontFamily', e.target.value); canvas.renderAll(); }
         });
         dom.elemFontSize.addEventListener('input', (e) => {
             const obj = canvas.getActiveObject();
-            if(obj && obj.type === 'i-text') { obj.set('fontSize', parseInt(e.target.value)); canvas.renderAll(); }
+            if(obj && isTextObj(obj)) { obj.set('fontSize', parseInt(e.target.value)); canvas.renderAll(); }
         });
 
         function setUIFromFill(fill) {
@@ -2842,7 +2864,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             btn.addEventListener('click', (e) => {
                 const align = btn.getAttribute('data-align');
                 const obj = canvas.getActiveObject();
-                if(obj && obj.type === 'i-text') {
+                if(obj && isTextObj(obj)) {
                     obj.set('textAlign', align);
                     canvas.renderAll();
                     updateAlignBtns(align);
@@ -2879,7 +2901,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         function repairLoadedCanvas() {
             if (!canvas) return;
             canvas.getObjects().forEach(function (o) {
-                if (o.type === 'i-text') {
+                if (o.type === 'i-text' || o.type === 'textbox') {
                     o.lockUniScaling = true;
                     o.set('dirty', true);
                     return;
@@ -3022,7 +3044,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                     dom.elemFont.add(option);
                     dom.elemFont.value = fontName;
                     const obj = canvas.getActiveObject();
-                    if(obj && obj.type === 'i-text') { obj.set('fontFamily', fontName); canvas.renderAll(); }
+                    if(obj && isTextObj(obj)) { obj.set('fontFamily', fontName); canvas.renderAll(); }
                     toast("تم تحميل الخط وتفعيله على النص المحدد", "ok");
                 }).catch(err => toast("فشل تحميل الخط — تأكد أن الملف TTF/OTF/WOFF صالح", "danger"));
             };
@@ -3065,7 +3087,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 objects.forEach(obj => {
                     if (obj.mappedColumn && row[obj.mappedColumn] !== undefined) {
                         const val = row[obj.mappedColumn].toString();
-                        if (obj.type === 'i-text') {
+                        if (obj.type === 'i-text' || obj.type === 'textbox') {
                             obj.set('text', val);
                         } else if (obj.type === 'image' && (obj.customType === 'image' || obj.customType === 'dynamicImage')) {
                             const imgDataUrl = findLocalImage(val);
@@ -3099,7 +3121,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             canvas.getObjects().forEach(obj => {
                 states.push({
                     type: obj.type,
-                    text: obj.type === 'i-text' ? obj.text : null,
+                    text: isTextObj(obj) ? obj.text : null,
                     element: obj.type === 'image' ? obj.getElement() : null,
                     width: obj.width,
                     height: obj.height,
@@ -3117,7 +3139,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             const objects = canvas.getObjects();
             objects.forEach((obj, i) => {
                 if (!originalStates[i]) return;
-                if (originalStates[i].type === 'i-text') {
+                if (originalStates[i].type === 'i-text' || originalStates[i].type === 'textbox') {
                     obj.set('text', originalStates[i].text);
                 } else if (originalStates[i].type === 'image') {
                     obj.setElement(originalStates[i].element);
@@ -3210,7 +3232,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             const dataUrl = canvas.toDataURL({ format: 'jpeg', quality: 0.97, multiplier: 1 / scaleFactor });
             const base64Data = dataUrl.replace(/^data:image\/jpeg;base64,/, "");
             let nm = "بطاقة";
-            const first = canvas.getObjects().filter(function (o) { return o.type === 'i-text' && o.text; })[0];
+            const first = canvas.getObjects().filter(function (o) { return isTextObj(o) && o.text; })[0];
             if (first) nm = String(first.text).split('\n')[0].trim().slice(0, 40);
             if (!nm) nm = "Card_" + Date.now();
             const safe = window.__amSafeName ? window.__amSafeName(nm, 1) : nm + ".jpg";
@@ -3893,7 +3915,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         if (!color) { if (typeof toast === 'function') toast('التقط من داخل منطقة البطاقة.', 'warn'); return; }
         var obj = null;
         try { obj = (typeof canvas !== 'undefined' && canvas.getActiveObject) ? canvas.getActiveObject() : null; } catch (err) {}
-        if (obj && (obj.type === 'i-text' || obj.type === 'rect' || obj.type === 'circle' || obj.type === 'triangle' || obj.type === 'polygon' || obj.type === 'path')) {
+        if (obj && (obj.type === 'i-text' || obj.type === 'textbox' || obj.type === 'rect' || obj.type === 'circle' || obj.type === 'triangle' || obj.type === 'polygon' || obj.type === 'path')) {
             obj.set('fill', color);
             var col = document.getElementById('elemColor');
             if (col) col.value = color;
@@ -4035,8 +4057,13 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             c.add(img); applyMaskToObject(img);
             ['name', 'number', 'expiry'].forEach(function (k) {
                 var f = lay[k]; if (!f) return;
-                var txt = new fabric.IText(String(f.text || ''), {
-                    left: f.x * s, top: f.y * s, originX: 'center', originY: 'center',
+                var fx = f.x * s;
+                // عرض التفاف: يبقى الحقل داخل حدود البطاقة (مع هامش ٢٠پكسل) —
+                // النص القصير يبقى سطراً واحداً، والطويل يلتف تلقائياً
+                var wrapW = Math.max(100, Math.min(canvas.width - 60, (Math.min(fx, canvas.width - fx) - 20) * 2));
+                var txt = new fabric.Textbox(String(f.text || ''), {
+                    left: fx, top: f.y * s, originX: 'center', originY: 'center',
+                    width: wrapW,
                     fontFamily: f.font || 'Mohammad Bold Art', fontSize: Math.max(6, (f.fs || 40) * s),
                     fill: f.fill || DARK, textAlign: 'center', customType: 'text', __amKey: k,
                     mappedColumn: f.col || guess(k), lockUniScaling: true
@@ -4203,7 +4230,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
     };
     function remeasureText() {
         var c = cvs(); if (!c) return;
-        c.getObjects().forEach(function (o) { if (o.type === 'i-text' && o.initDimensions) { try { o.initDimensions(); } catch (e) {} } });
+        c.getObjects().forEach(function (o) { if (isTextObj(o) && o.initDimensions) { try { o.initDimensions(); } catch (e) {} } });
         c.requestRenderAll();
         if (typeof updateLayersList === 'function') { try { updateLayersList(); } catch (e) {} }
     }
@@ -4503,5 +4530,5 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 })();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a33536b70a62ee9d',t:'MTc4ODEwNzc3OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a335618bf8dcc99e',t:'MTc4ODEwOTUzNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
