@@ -951,7 +951,7 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
     position: fixed; z-index: 91;
     inset-inline: 10px;
     bottom: calc(var(--tabbar-space, 62px) + env(safe-area-inset-bottom) + 10px);
-    max-height: min(52vh, 400px);
+    max-height: min(34vh, 300px);
     display: flex; flex-direction: column;
     border: 1px solid var(--line-2); border-radius: var(--r-lg);
     background: color-mix(in oklab, var(--panel-solid, #14161a) 94%, transparent);
@@ -963,6 +963,12 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
     overflow: hidden;
 }
 .props-drawer.open { opacity: 1; visibility: visible; transform: none; transition: opacity var(--t), transform var(--t); }
+/* مقبض سحب رأسي: يوسّع/يقلّص الدرج باللمس أو الفأرة (الافتراضي صغير فتبقى البطاقة ظاهرة) */
+.props-drawer__grip {
+    flex-shrink: 0; height: 20px; display: flex; align-items: center; justify-content: center;
+    cursor: ns-resize; touch-action: none; -webkit-tap-highlight-color: transparent;
+}
+.props-drawer__grip::before { content: ''; width: 44px; height: 4px; border-radius: 99px; background: var(--line-2); }
 .props-drawer__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 /* اللوحة المنقولة داخل الدرج: بلا حواف إضافية وتملأ العرض */
 .props-drawer__body .panel { border: none; box-shadow: none; border-radius: 0; }
@@ -1185,6 +1191,14 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 <button class="save-opt save-opt--zip" id="btnZipAll" role="menuitem">
                     <span class="save-opt__k">مضغوط ZIP · كل السجلات</span>
                     <span class="save-opt__d" id="zipHint">بدقة القالب · يتطلب ملف Excel</span>
+                </button>
+                <button class="save-opt save-opt--zip" id="btnExcelAll" role="menuitem">
+                    <span class="save-opt__k"><svg class="ic" aria-hidden="true"><use href="#i-file-spreadsheet"></use></svg> ملف Excel · كل السجلات</span>
+                    <span class="save-opt__d">يولّد البطاقات ويحفظ جداولها في ملف Excel</span>
+                </button>
+                <button class="save-opt save-opt--zip" id="btnDbAll" role="menuitem">
+                    <span class="save-opt__k"><svg class="ic" aria-hidden="true"><use href="#i-database"></use></svg> قاعدة بيانات · SQLite</span>
+                    <span class="save-opt__d">نفس بيانات البطاقات في ملف قاعدة بيانات .db</span>
                 </button>
             </div>
         </div>
@@ -1483,6 +1497,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 
 <!-- D7 · درج خصائص العنصر فوق البطاقة: تُنقل اللوحة الأصلية هنا مؤقتاً على الجوال -->
 <div id="propsDrawer" class="props-drawer" role="dialog" aria-modal="false" aria-label="خصائص العنصر" aria-hidden="true">
+    <div class="props-drawer__grip" id="propsDrawerGrip" aria-hidden="true"></div>
     <div class="layers-drawer__head">
         <h3><svg class="ic" aria-hidden="true"><use href="#i-sliders-horizontal"></use></svg> خصائص العنصر</h3>
         <button class="btn-icon layers-drawer__close" id="propsDrawerClose" aria-label="إغلاق خصائص العنصر">
@@ -2321,6 +2336,109 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 if (missRows.length) toast(`تنبيه: ${missRows.length} سجلًا بلا صورة مطابقة في مجلد الصور — ` + missRows.slice(0, 2).join(" | ") + (missRows.length > 2 ? " …" : ""), "warn");
             });
         }
+        // ==== D8 · حفظ تلقائي للبطاقات: ملف Excel أو قاعدة بيانات SQLite ====
+        // حلقة توليد مشتركة: تعيد نتائج كل سجل (بيانات + اسم ملف البطاقة + الحالة)
+        // وملف ZIP جاهزاً بصور البطاقات، فيُعاد استخدامها لخياري الحفظ الجديدين.
+        async function GENERATE_ALL() {
+            canvas.discardActiveObject();
+            canvas.renderAll();
+            const zip = new JSZip();
+            const results = [];
+            const missRows = [];
+            if (window.__amNameReset) window.__amNameReset();
+            if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+            const originalStates = captureOriginalStates();
+            dom.progressModal.style.display = 'flex';
+            for (let i = 0; i < excelData.length; i++) {
+                const row = excelData[i];
+                dom.progressText.innerText = `${i + 1} / ${excelData.length}`;
+                dom.progressBar.style.width = `${((i + 1) / excelData.length) * 100}%`;
+                const dataUrl = await generateImageForRow(row);
+                const base64Data = dataUrl.replace(/^data:image\/jpeg;base64,/, "");
+                let rawName = '';
+                ['الاسم', 'Name', 'الاسم الرباعي'].some(k => { if (row[k]) { rawName = String(row[k]); return true; } return false; });
+                if (!rawName && columns[0]) rawName = String(row[columns[0]] || '');
+                const fileName = window.__amSafeName ? window.__amSafeName(rawName, i + 1) : `Card_${i + 1}.jpg`;
+                zip.file(fileName, base64Data, {base64: true});
+                const miss = (row.__amMissing && row.__amMissing.length) ? row.__amMissing.join('، ') : '';
+                if (miss) missRows.push(fileName + ' ← ' + miss);
+                // نسخة نظيفة من السجل بلا خصائص داخلية (__…)
+                const clean = {};
+                Object.keys(row).forEach(k => { if (!k.startsWith('__')) clean[k] = row[k]; });
+                results.push(Object.assign({}, clean, {
+                    'ملف البطاقة': fileName,
+                    'الحالة': miss ? 'تحذير: صور ناقصة' : 'تم بنجاح'
+                }));
+                await new Promise(r => setTimeout(r, 10));
+            }
+            revertCanvasState(originalStates);
+            dom.progressText.innerText = 'جاري تجهيز الملفات...';
+            const zipBlob = await zip.generateAsync({ type: "blob" });
+            return { results, zipBlob, missRows };
+        }
+        // خيار «ملف Excel»: جداول كل البطاقات في ملف XLSX + صور ZIP مصاحبة
+        window.__saveExcelAll = async function () {
+            if (!canvas) return toast("ارفع صورة القالب أولاً.", "warn");
+            if (typeof excelData === "undefined" || !excelData.length) return toast("اربط ملف Excel أولاً ثم اختر الحفظ.", "warn");
+            try {
+                const { results, zipBlob, missRows } = await GENERATE_ALL();
+                dom.progressText.innerText = 'جاري حفظ ملف Excel...';
+                const ws = XLSX.utils.json_to_sheet(results);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'البطاقات');
+                XLSX.writeFile(wb, 'بطاقات_العضوية.xlsx');
+                saveAs(zipBlob, 'بطاقات_العضوية_الصور.zip');
+                dom.progressModal.style.display = 'none';
+                toast(`تم الحفظ: ملف Excel + صور ${results.length} بطاقة تلقائياً.`, "ok");
+                if (missRows.length) toast(`تنبيه: ${missRows.length} سجلًا بلا صورة مطابقة — ${missRows.slice(0, 2).join(" | ")}${missRows.length > 2 ? " …" : ""}`, "warn");
+            } catch (err) {
+                dom.progressModal.style.display = 'none';
+                toast("فشل حفظ ملف Excel — " + (err && err.message ? err.message : err), "danger");
+            }
+        };
+        // خيار «قاعدة بيانات»: نفس البيانات في قاعدة SQLite محلية تُحمَّل كملف .db
+        function ensureSQL() {
+            if (window.SQL) return Promise.resolve(window.SQL);
+            return new Promise(function (res, rej) {
+                var s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js';
+                s.onload = function () {
+                    initSqlJs({ locateFile: function (f) { return 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/' + f; } })
+                        .then(function (S) { window.SQL = S; res(S); })
+                        .catch(rej);
+                };
+                s.onerror = function () { rej(new Error("تعذّر تحميل مكتبة قاعدة البيانات (اتصال بالإنترنت)")); };
+                document.head.appendChild(s);
+            });
+        }
+        window.__saveDbAll = async function () {
+            if (!canvas) return toast("ارفع صورة القالب أولاً.", "warn");
+            if (typeof excelData === "undefined" || !excelData.length) return toast("اربط ملف Excel أولاً ثم اختر الحفظ.", "warn");
+            try {
+                const { results, zipBlob, missRows } = await GENERATE_ALL();
+                dom.progressText.innerText = 'جاري إنشاء قاعدة البيانات...';
+                const SQL = await ensureSQL();
+                const db = new SQL.Database();
+                db.run('CREATE TABLE IF NOT EXISTS cards (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, file TEXT, status TEXT, data TEXT);');
+                const stmt = db.prepare('INSERT INTO cards (name, file, status, data) VALUES (?, ?, ?, ?)');
+                results.forEach(function (r) {
+                    const name = String(r['الاسم'] || r['Name'] || r['الاسم الرباعي'] || r[columns[0]] || '');
+                    stmt.run([name, r['ملف البطاقة'], r['الحالة'], JSON.stringify(r)]);
+                });
+                stmt.free();
+                const u8 = db.export();
+                db.close();
+                const blob = new Blob([u8], { type: 'application/x-sqlite3' });
+                saveAs(blob, 'بطاقات_العضوية.db');
+                saveAs(zipBlob, 'بطاقات_العضوية_الصور.zip');
+                dom.progressModal.style.display = 'none';
+                toast(`تم الحفظ: قاعدة بيانات + صور ${results.length} بطاقة تلقائياً.`, "ok");
+                if (missRows.length) toast(`تنبيه: ${missRows.length} سجلًا بلا صورة مطابقة — ${missRows.slice(0, 2).join(" | ")}${missRows.length > 2 ? " …" : ""}`, "warn");
+            } catch (err) {
+                dom.progressModal.style.display = 'none';
+                toast("فشل حفظ قاعدة البيانات — " + (err && err.message ? err.message : err), "danger");
+            }
+        };
         dom.btnGenerate.onclick = window.__saveSingle;
 
         function updateLivePreviewUI() {
@@ -2366,6 +2484,10 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             smenu.addEventListener('click', function (e) {
                 var z = e.target.closest('#btnZipAll');
                 if (z) { smenu.removeAttribute(KEEP); window.__saveZipAll(); return; }
+                var ex = e.target.closest('#btnExcelAll');
+                if (ex) { smenu.removeAttribute(KEEP); window.__saveExcelAll(); return; }
+                var dbb = e.target.closest('#btnDbAll');
+                if (dbb) { smenu.removeAttribute(KEEP); window.__saveDbAll(); return; }
                 var o = e.target.closest('.save-opt[data-scale]'); if (!o) return;
                 window.__exportScale = +o.getAttribute('data-scale');
                 smenu.querySelectorAll('.save-opt[data-scale]').forEach(function (x) {
@@ -2815,6 +2937,35 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         fab.classList.toggle('on', !!hasObj);
         fab.classList.toggle('off', !hasObj);
     }
+
+    /* سحب المقبض: تغيير ارتفاع الدرج يدوياً (افتراضياً صغير كي تبقى البطاقة ظاهرة) */
+    (function () {
+        var grip = document.getElementById('propsDrawerGrip');
+        if (!grip) return;
+        var startY = 0, startH = 0, dragging = false;
+        function y(e) { return (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY; }
+        grip.addEventListener('touchstart', function (e) { dragging = true; startY = y(e); startH = drawer.offsetHeight; e.preventDefault(); }, { passive: false });
+        grip.addEventListener('touchmove', function (e) {
+            if (!dragging) return;
+            var h = startH + (startY - y(e));
+            var max = Math.min(window.innerHeight * 0.72, window.innerHeight - 130);
+            h = Math.max(110, Math.min(h, max));
+            drawer.style.maxHeight = h + 'px';
+            e.preventDefault();
+        }, { passive: false });
+        function up() { dragging = false; }
+        grip.addEventListener('touchend', up);
+        grip.addEventListener('touchcancel', up);
+        grip.addEventListener('mousedown', function (e) { dragging = true; startY = y(e); startH = drawer.offsetHeight; e.preventDefault(); });
+        window.addEventListener('mousemove', function (e) {
+            if (!dragging) return;
+            var h = startH + (startY - y(e));
+            var max = Math.min(window.innerHeight * 0.72, window.innerHeight - 130);
+            h = Math.max(110, Math.min(h, max));
+            drawer.style.maxHeight = h + 'px';
+        });
+        window.addEventListener('mouseup', up);
+    })();
     window.__syncPropsFab = function () {
         syncFab();
         if (!isMobile() || body.getAttribute('data-view') !== 'canvas' || !(function () { try { return !!(typeof canvas !== 'undefined' && canvas && canvas.getObjects); } catch (e) { return false; } })()) setOpen(false);
@@ -3463,5 +3614,5 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 })();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a333520efd75ed49',t:'MTc4ODA4NzkyOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a333634df8baed49',t:'MTc4ODA4ODYzNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
