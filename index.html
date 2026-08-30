@@ -849,6 +849,64 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
     font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; pointer-events: auto;
 }
 
+/* ---------- 32. D5 · طبقات الجوال: درج منزلق فوق البطاقة ---------- */
+/* زر عائم يفتح قائمة الطبقات فوق الكانفس مباشرة (يظهر على الجوال فقط حين توجد بطاقة) */
+.layers-fab { display: none; }
+@media (max-width: 900px) {
+    body.has-canvas[data-view="canvas"] .layers-fab {
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        position: fixed; z-index: 90;
+        bottom: calc(var(--tabbar-space, 62px) + env(safe-area-inset-bottom) + 12px);
+        inset-inline-end: 14px;
+        min-width: 54px; min-height: 54px; padding: 10px 16px;
+        border: 1px solid var(--accent-line); border-radius: 999px;
+        background: color-mix(in oklab, var(--bg-2, #101215) 88%, transparent);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        color: var(--accent-2); font: inherit; font-size: 12.5px; font-weight: 800;
+        box-shadow: var(--shadow-key); cursor: pointer; touch-action: manipulation;
+        transition: transform var(--t), opacity var(--t);
+    }
+    body.has-canvas[data-view="canvas"] .layers-fab:active { transform: scale(.93); }
+    .layers-fab .ic { width: 21px; height: 21px; }
+    .layers-fab__count {
+        min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px;
+        background: var(--accent); color: var(--accent-ink);
+        font-size: 11px; font-weight: 900; line-height: 20px; text-align: center;
+    }
+}
+/* الدرج نفسه: لوحة صغيرة في أسفل الشاشة فوق شريط التبويب */
+.layers-drawer {
+    position: fixed; z-index: 91;
+    inset-inline: 10px;
+    bottom: calc(var(--tabbar-space, 62px) + env(safe-area-inset-bottom) + 10px);
+    max-height: min(46vh, 340px);
+    display: flex; flex-direction: column;
+    border: 1px solid var(--line-2); border-radius: var(--r-lg);
+    background: color-mix(in oklab, var(--panel-solid, #14161a) 94%, transparent);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    box-shadow: var(--shadow-key);
+    opacity: 0; visibility: hidden;
+    transform: translateY(14px) scale(.985);
+    transition: opacity var(--t), transform var(--t), visibility 0s linear var(--t);
+}
+.layers-drawer.open { opacity: 1; visibility: visible; transform: none; transition: opacity var(--t), transform var(--t); }
+.layers-drawer__head {
+    display: flex; align-items: center; gap: 8px; padding: 11px 14px 5px; flex-shrink: 0;
+}
+.layers-drawer__head h3 {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 13px; font-weight: 800; color: var(--text-2); margin: 0;
+}
+.layers-drawer__head h3 .ic { color: var(--accent); width: 17px; height: 17px; }
+.layers-drawer__close { margin-inline-start: auto; }
+.layers-drawer .layers-list {
+    flex: 1 1 auto; min-height: 0; max-height: 100%;
+    overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+    padding: 3px 12px 8px;
+}
+.layers-drawer__foot { flex-shrink: 0; padding: 8px 12px 12px; border-top: 1px solid var(--line); }
+.layers-drawer__foot .btn-secondary { width: 100%; min-height: 44px; }
+
 </style>
 
     <!-- المكتبات: نفس الإصدارات الأصلية، لم يتغيّر منها شيء -->
@@ -1310,6 +1368,27 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
     </button>
 </nav>
 
+<!-- ============ D5 · طبقات الجوال: زر عائم + درج فوق البطاقة ============ -->
+<button id="layersFab" class="layers-fab" aria-label="فتح قائمة الطبقات" aria-expanded="false" aria-controls="layersDrawer">
+    <svg class="ic" aria-hidden="true"><use href="#i-layers-3"></use></svg>
+    <span class="layers-fab__count" id="layersFabCount">0</span>
+</button>
+<div id="layersDrawer" class="layers-drawer" role="dialog" aria-modal="false" aria-label="قائمة الطبقات" aria-hidden="true">
+    <div class="layers-drawer__head">
+        <h3><svg class="ic" aria-hidden="true"><use href="#i-grip-vertical"></use></svg> الطبقات</h3>
+        <button class="btn-icon layers-drawer__close" id="layersDrawerClose" aria-label="إغلاق قائمة الطبقات">
+            <svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg>
+        </button>
+    </div>
+    <div id="layersListMobile" class="layers-list"></div>
+    <div class="layers-drawer__foot">
+        <button class="btn-secondary" id="btnDrawerProps">
+            <svg class="ic" aria-hidden="true"><use href="#i-sliders-horizontal"></use></svg>
+            خصائص العنصر المحدد
+        </button>
+    </div>
+</div>
+
 <!-- ============ نافذة التقدّم ============ -->
 <div id="progressModal" class="modal" role="dialog" aria-modal="true" aria-label="جاري التوليد">
     <div class="modal-content">
@@ -1329,6 +1408,11 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
         // ==== D1 · أدوات واجهة بحتة (لا تشارك في أي حساب أو توليد) ====
         function ic(name, cls) {
             return '<svg class="' + (cls || 'ic') + '" aria-hidden="true"><use href="#i-' + name + '"></use></svg>';
+        }
+        function escHtml(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+                return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+            });
         }
         function toast(msg, type) {
             var box = document.getElementById('toasts');
@@ -1649,35 +1733,53 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
             canvas.add(shape); canvas.setActiveObject(shape); updateLayersList();
         });
 
-        function updateLayersList() {
-            if(!canvas) return;
-            dom.layersList.innerHTML = '';
+        function buildLayersListHTML() {
             const objects = canvas.getObjects();
             if (objects.length === 0) {
-                dom.layersList.innerHTML = `<div class="layers-empty">${ic('layers-3')}<div>لا عناصر بعد — أضف نصاً أو صورة من لوحة «إضافة عناصر»</div></div>`;
-                return;
+                return `<div class="layers-empty">${ic('layers-3')}<div>لا عناصر بعد — أضف نصاً أو صورة من لوحة «إضافة عناصر»</div></div>`;
             }
             const activeObj = canvas.getActiveObject();
+            let html = '';
             [...objects].reverse().forEach((obj, reversedIndex) => {
                 const originalIndex = objects.length - 1 - reversedIndex;
                 let icon = 'shapes';
                 let name = 'عنصر';
                 if(obj.type === 'i-text') { icon = 'type'; name = obj.text.length > 14 ? obj.text.substring(0, 14) + '…' : obj.text; }
-                else if(obj.type === 'image') { icon = 'image'; name = obj.customType === 'dynamicImage' ? 'صورة متغيرة' : 'صورة'; }
+                else if(obj.type === 'image') { icon = 'image'; name = obj.customType === 'dynamicImage' ? 'صورة متغيرة' : (obj.customType === 'qr' ? 'رمز QR' : 'صورة'); }
                 else if(obj.type === 'rect') { icon = 'square'; name = 'مربع'; }
                 else if(obj.type === 'circle') { icon = 'circle'; name = 'دائرة'; }
                 else if(obj.type === 'triangle') { icon = 'triangle'; name = 'مثلث'; }
                 else if(obj.type === 'polygon' || obj.type === 'path') { icon = 'sparkles'; name = 'شكل'; }
-                const tag = obj.mappedColumn ? `<span class="layer-tag">${obj.mappedColumn}</span>` : '';
-                const div = document.createElement('div');
-                div.className = `layer-item ${obj === activeObj ? 'active' : ''}`;
-                div.innerHTML = `
-                    <div class="layer-item__label">${ic(icon)}<span>${name}</span></div>
+                const tag = obj.mappedColumn ? `<span class="layer-tag">${escHtml(obj.mappedColumn)}</span>` : '';
+                html += `<div class="layer-item ${obj === activeObj ? 'active' : ''}" data-i="${originalIndex}">
+                    <div class="layer-item__label">${ic(icon)}<span>${escHtml(name)}</span></div>
                     ${tag}
-                `;
-                div.onclick = () => { canvas.setActiveObject(obj); canvas.renderAll(); };
-                dom.layersList.appendChild(div);
+                </div>`;
             });
+            return html;
+        }
+        function renderLayersInto(host) {
+            if (!host) return;
+            host.innerHTML = buildLayersListHTML();
+            const objects = canvas.getObjects();
+            Array.from(host.querySelectorAll('.layer-item')).forEach(div => {
+                div.onclick = () => {
+                    const obj = objects[+div.getAttribute('data-i')];
+                    if (!obj) return;
+                    canvas.setActiveObject(obj);
+                    canvas.renderAll();
+                };
+            });
+        }
+        function updateLayersList() {
+            if(!canvas) return;
+            renderLayersInto(dom.layersList);
+            renderLayersInto(document.getElementById('layersListMobile'));
+            const fab = document.getElementById('layersFab');
+            if (fab) {
+                const c = document.getElementById('layersFabCount');
+                if (c) c.textContent = String(canvas.getObjects().length || 0);
+            }
         }
 
         function onObjectSelected(e) {
@@ -2416,6 +2518,69 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
 </script>
 <script>
 /* ============================================================
+   D5 · طبقات الجوال: درج منزلق فوق البطاقة (جوال فقط — لا يمسّ الديسكتوب)
+   يفتح قائمة الطبقات فوق الكانفس مباشرة بدل التبويب المنفصل، مع زر
+   «خصائص العنصر المحدد» للقفز إلى تبويب الخصائص عند الحاجة.
+   ============================================================ */
+(function () {
+    'use strict';
+    var fab = document.getElementById('layersFab'),
+        drawer = document.getElementById('layersDrawer'),
+        closeBtn = document.getElementById('layersDrawerClose'),
+        propsBtn = document.getElementById('btnDrawerProps'),
+        body = document.body;
+    if (!fab || !drawer) return;
+
+    function isMobile() {
+        var bar = document.querySelector('.tabbar');
+        return !!bar && bar.offsetParent !== null;
+    }
+    function setOpen(open) {
+        drawer.classList.toggle('open', !!open);
+        drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+        fab.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open && typeof updateLayersList === 'function') updateLayersList();
+    }
+    fab.addEventListener('click', function () { setOpen(!drawer.classList.contains('open')); });
+    if (closeBtn) closeBtn.addEventListener('click', function () { setOpen(false); });
+    if (propsBtn) propsBtn.addEventListener('click', function () {
+        setOpen(false);
+        var t = document.querySelector('.tab[data-view-target="props"]');
+        if (t) t.click();
+    });
+    // إغلاق عند لمس أي شيء خارج الدرج.
+    // ملاحظة: النقر على عنصر يعيد بناء قائمة الطبقات (innerHTML) فيُزال العنصر
+    // المنقور من DOM قبل اكتمال فقاعة الحدث، فيكسر drawer.contains().
+    // composedPath() يحتفظ بالمسار الأصلي للحدث حتى بعد إزالة العقد — نعتمد عليه.
+    document.addEventListener('click', function (e) {
+        if (!drawer.classList.contains('open')) return;
+        var path = [];
+        try { path = e.composedPath ? e.composedPath() : []; } catch (err) { path = []; }
+        if (path.indexOf(drawer) >= 0 || path.indexOf(fab) >= 0) return;
+        setOpen(false);
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setOpen(false); });
+
+    function sync() {
+        var hasCanvas = false;
+        try { hasCanvas = !!(typeof canvas !== 'undefined' && canvas && canvas.getObjects); } catch (e) {}
+        body.classList.toggle('has-canvas', !!hasCanvas);
+        if (!isMobile() || !hasCanvas || body.getAttribute('data-view') !== 'canvas') setOpen(false);
+    }
+    sync();
+    new MutationObserver(sync).observe(body, { attributes: true, attributeFilter: ['data-view', 'class'] });
+    // الكانفس يُنشأ/يُرمى ديناميكياً داخل الحاوية — نراقبها لضبط has-canvas فوراً
+    var cc = document.getElementById('canvasContainer');
+    if (cc) new MutationObserver(sync).observe(cc, { childList: true, subtree: true });
+    // وأيضاً عند ربط التحكم في رأس الصفحة بعد تحميل كامل
+    if (document.readyState !== 'complete') window.addEventListener('load', sync);
+    window.addEventListener('resize', function () { sync(); });
+    window.__syncMobileLayers = sync;
+})();
+</script>
+
+<script>
+/* ============================================================
    E1 · معرض قوالب البطاقات — «خاصة» من المستودع و«عامة» من الجهاز
    طبقة إضافية فقط: تستعمل مسارات المكوّن الأصلي (رفع ← initCanvas ←
    setBackgroundImage) بلا نسخة منه، وتحفظ تخطيط الحقول لكل قالب.
@@ -2430,8 +2595,8 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
     var TPL = [
         { id: 'gold-m',    t: 'العضوية الذهبية · فنان تشكيلي',   file: 'عضوية ذهبية فنان تشكيلي.jpg',        w: 1219, h: 752, photo: [253, 308, 190], ink: [DARK, LIGHT, LIGHT] },
         { id: 'gold-f',    t: 'العضوية الذهبية · فنانة تشكيلية', file: 'فنانة تشكيلية عضوية ذهبيه.jpg',      w: 1219, h: 752, photo: [253, 308, 190], ink: [DARK, LIGHT, LIGHT] },
-        { id: 'silver-m',  t: 'العضوية الفضية · فنان تشكيلي',    file: 'فنان تشكيلي عضوية فضية.jpg',         w: 1219, h: 752, photo: [253, 315, 168], ink: [DARK, LIGHT, LIGHT] },
-        { id: 'silver-f',  t: 'العضوية الفضية · فنانة تشكيلية',  file: 'فنانة تشكيليه عضويه فضية.jpg',       w: 1219, h: 752, photo: [253, 315, 168], ink: [DARK, LIGHT, LIGHT] },
+        { id: 'silver-m',  t: 'العضوية الفضية · فنان تشكيلي',    file: 'العضوية الفضية فنان تشكيلي.jpg',     w: 1219, h: 752, photo: [253, 315, 168], ink: [DARK, LIGHT, LIGHT] },
+        { id: 'silver-f',  t: 'العضوية الفضية · فنانة تشكيلية',  file: 'العضوية الفضية فنانة تشكيلية.jpg',   w: 1219, h: 752, photo: [253, 315, 168], ink: [DARK, LIGHT, LIGHT] },
         { id: 'bronze-m',  t: 'العضوية البرونزية · فنان تشكيلي', file: 'فنان تشكيلي عضوية برونزية.jpg',       w: 1219, h: 752, photo: [265, 320, 140], ink: [DARK, DARK, DARK] },
         { id: 'bronze-f',  t: 'العضوية البرونزية · فنانة',       file: 'فنانة تشكيلية عضوية برونزية.jpg',    w: 1219, h: 752, photo: [265, 320, 140], ink: [DARK, DARK, DARK] },
         { id: 'honor-m',   t: 'العضوية الشرفية · فنان تشكيلي',   file: 'عضوية شرفية فنان تشكيلي.jpg',         w: 1219, h: 752, photo: [241, 320, 150], ink: [DARK, DARK, DARK] },
@@ -2985,5 +3150,5 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
 })();
 
 </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3330d04999bedb4',t:'MTc4ODA4NTEwMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
