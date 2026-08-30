@@ -308,6 +308,22 @@ input[type="range"] {
 
 /* ---------- 9. شبكة الأدوات ---------- */
 .tools-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+/* قائمة «أشكال إضافية» داخل شبكة الأدوات — مخفية افتراضياً حتى يفتحها المستخدم */
+.tool-select {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 7px;
+    min-height: 38px; padding: 0 10px;
+    background: rgba(0, 0, 0, .22);
+    border: 1px dashed var(--line-2); border-radius: var(--r-md);
+    color: var(--text-3); cursor: pointer;
+}
+.tool-select .ic { width: 15px; height: 15px; flex-shrink: 0; color: var(--accent); }
+.tool-select select {
+    flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+    color: var(--text-2); font: inherit; font-size: 12px; font-weight: 600;
+    appearance: none; -webkit-appearance: none; cursor: pointer; padding: 6px 0;
+}
+.tool-select select option { background: var(--bg-2, #14161a); color: var(--text-1); }
 .tool-btn {
     flex-direction: column; gap: 6px;
     min-height: 62px; padding: 10px 4px;
@@ -907,6 +923,69 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
 .layers-drawer__foot { flex-shrink: 0; padding: 8px 12px 12px; border-top: 1px solid var(--line); }
 .layers-drawer__foot .btn-secondary { width: 100%; min-height: 44px; }
 
+/* ---------- 33. D7 · خصائص الجوال: درج فوق البطاقة + قطارة من الصورة ---------- */
+/* زرّان عائمان فوق بعضهما في الركن السفلي (الخصائص فوق الطبقات) */
+@media (max-width: 900px) {
+    body.has-canvas[data-view="canvas"] .layers-fab { bottom: calc(var(--tabbar-space, 62px) + env(safe-area-inset-bottom) + 74px); }
+    .props-fab { display: none; }
+    body.has-canvas[data-view="canvas"] .props-fab {
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        position: fixed; z-index: 90;
+        bottom: calc(var(--tabbar-space, 62px) + env(safe-area-inset-bottom) + 12px);
+        inset-inline-end: 14px;
+        min-width: 54px; min-height: 54px; padding: 10px 16px;
+        border: 1px solid var(--accent-line); border-radius: 999px;
+        background: color-mix(in oklab, var(--bg-2, #101215) 88%, transparent);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        color: var(--accent-2); font: inherit; font-size: 12.5px; font-weight: 800;
+        box-shadow: var(--shadow-key); cursor: pointer; touch-action: manipulation;
+        transition: transform var(--t), opacity var(--t);
+    }
+    body.has-canvas[data-view="canvas"] .props-fab:active { transform: scale(.93); }
+    .props-fab .ic { width: 21px; height: 21px; }
+    .props-fab.on { opacity: 1; }
+    .props-fab.off { opacity: .45; }
+}
+/* درج الخصائص: لوحة أسفل الشاشة فوق شريط التبويب، البطاقة تبقى ظاهرة أعلاه */
+.props-drawer {
+    position: fixed; z-index: 91;
+    inset-inline: 10px;
+    bottom: calc(var(--tabbar-space, 62px) + env(safe-area-inset-bottom) + 10px);
+    max-height: min(52vh, 400px);
+    display: flex; flex-direction: column;
+    border: 1px solid var(--line-2); border-radius: var(--r-lg);
+    background: color-mix(in oklab, var(--panel-solid, #14161a) 94%, transparent);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    box-shadow: var(--shadow-key);
+    opacity: 0; visibility: hidden;
+    transform: translateY(14px) scale(.985);
+    transition: opacity var(--t), transform var(--t), visibility 0s linear var(--t);
+    overflow: hidden;
+}
+.props-drawer.open { opacity: 1; visibility: visible; transform: none; transition: opacity var(--t), transform var(--t); }
+.props-drawer__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+/* اللوحة المنقولة داخل الدرج: بلا حواف إضافية وتملأ العرض */
+.props-drawer__body .panel { border: none; box-shadow: none; border-radius: 0; }
+.props-drawer__pick {
+    flex-shrink: 0; display: flex; gap: 10px; align-items: center;
+    padding: 10px 12px 12px; border-top: 1px solid var(--line);
+}
+.props-drawer__pick .btn-pick {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 46px; padding: 10px 12px;
+    border: 1px solid var(--accent-line); border-radius: var(--r-md);
+    background: var(--accent-glow); color: var(--accent-2);
+    font: inherit; font-size: 13px; font-weight: 800; cursor: pointer;
+}
+.props-drawer__pick .btn-pick .ic { width: 19px; height: 19px; }
+/* وضع التقاط اللون من البطاقة */
+body.am-picking .workspace { cursor: crosshair; }
+body.am-picking #canvasContainer .upper-canvas { cursor: crosshair !important; }
+body.am-picking .props-drawer { border-color: var(--accent); }
+.am-pick-hint {
+    flex: 1; font-size: 11.5px; color: var(--text-3); line-height: 1.5;
+}
+
 </style>
 
     <!-- المكتبات: نفس الإصدارات الأصلية، لم يتغيّر منها شيء -->
@@ -1025,6 +1104,7 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
   <symbol id="i-star" viewBox="0 0 24 24"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></symbol>
   <symbol id="i-heart" viewBox="0 0 24 24"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5" /></symbol>
   <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14" /> <path d="m12 5 7 7-7 7" /></symbol>
+  <symbol id="i-badge" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2-.7 3.6-1.8 5.6-.8 1.5-1.4 3.6-1.7 5.4h-7c-.3-1.8-.9-3.9-1.7-5.4C5.7 12.6 5 11 5 9a7 7 0 0 1 7-7Z" /></symbol>
   <symbol id="i-shapes" viewBox="0 0 24 24"><path d="M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.198-.043L16.3 8.9a.7.7 0 0 1-.572 1.1Z" /> <rect x="3" y="14" width="7" height="7" rx="1" /> <circle cx="17.5" cy="17.5" r="3.5" /></symbol>
   <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" /> <path d="M20 2v4" /> <path d="M22 4h-4" /> <circle cx="4" cy="20" r="2" /></symbol>
   <symbol id="i-sliders-horizontal" viewBox="0 0 24 24"><path d="M10 5H3" /> <path d="M12 19H3" /> <path d="M14 3v4" /> <path d="M16 17v4" /> <path d="M21 12h-9" /> <path d="M21 19h-5" /> <path d="M21 5h-7" /> <path d="M8 10v4" /> <path d="M8 12H3" /></symbol>
@@ -1148,6 +1228,13 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
                 <button class="tool-btn" id="addStarBtn"><svg class="ic ic--fill" aria-hidden="true"><use href="#i-star"></use></svg><span class="tool-btn__label">نجمة</span></button>
                 <button class="tool-btn" id="addHeartBtn"><svg class="ic ic--fill" aria-hidden="true"><use href="#i-heart"></use></svg><span class="tool-btn__label">قلب</span></button>
                 <button class="tool-btn" id="addArrowBtn"><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"></use></svg><span class="tool-btn__label">سهم</span></button>
+                <label class="tool-select" title="أشكال إضافية">
+                    <svg class="ic" aria-hidden="true"><use href="#i-shapes"></use></svg>
+                    <select id="extraShapeSel" aria-label="أشكال إضافية">
+                        <option value="">أشكال إضافية…</option>
+                        <option value="badge">شارة العضوية (قرص وحلقات)</option>
+                    </select>
+                </label>
             </div>
         </section>
 
@@ -1241,6 +1328,7 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
                     <option value="none">بدون (مستطيل)</option>
                     <option value="circle">قص دائري</option>
                     <option value="roundRect">حواف دائرية</option>
+                    <option value="badge">قص بشكل شارة العضوية</option>
                 </select>
             </div>
 
@@ -1368,10 +1456,14 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
     </button>
 </nav>
 
-<!-- ============ D5 · طبقات الجوال: زر عائم + درج فوق البطاقة ============ -->
+<!-- ============ D5/D7 · جوال: أزرار عائمة + درجان فوق البطاقة ============ -->
 <button id="layersFab" class="layers-fab" aria-label="فتح قائمة الطبقات" aria-expanded="false" aria-controls="layersDrawer">
     <svg class="ic" aria-hidden="true"><use href="#i-layers-3"></use></svg>
     <span class="layers-fab__count" id="layersFabCount">0</span>
+</button>
+<button id="propsFab" class="props-fab off" aria-label="فتح خصائص العنصر المحدد" aria-expanded="false" aria-controls="propsDrawer">
+    <svg class="ic" aria-hidden="true"><use href="#i-sliders-horizontal"></use></svg>
+    <span>الخصائص</span>
 </button>
 <div id="layersDrawer" class="layers-drawer" role="dialog" aria-modal="false" aria-label="قائمة الطبقات" aria-hidden="true">
     <div class="layers-drawer__head">
@@ -1386,6 +1478,24 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
             <svg class="ic" aria-hidden="true"><use href="#i-sliders-horizontal"></use></svg>
             خصائص العنصر المحدد
         </button>
+    </div>
+</div>
+
+<!-- D7 · درج خصائص العنصر فوق البطاقة: تُنقل اللوحة الأصلية هنا مؤقتاً على الجوال -->
+<div id="propsDrawer" class="props-drawer" role="dialog" aria-modal="false" aria-label="خصائص العنصر" aria-hidden="true">
+    <div class="layers-drawer__head">
+        <h3><svg class="ic" aria-hidden="true"><use href="#i-sliders-horizontal"></use></svg> خصائص العنصر</h3>
+        <button class="btn-icon layers-drawer__close" id="propsDrawerClose" aria-label="إغلاق خصائص العنصر">
+            <svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg>
+        </button>
+    </div>
+    <div id="propsDrawerBody" class="props-drawer__body"><!-- #noSelectionMsg + #propertiesPanel تُنقلان هنا --></div>
+    <div class="props-drawer__pick">
+        <button type="button" class="btn-pick" id="btnPickColor">
+            <svg class="ic" aria-hidden="true"><use href="#i-pipette"></use></svg>
+            التقط لوناً من البطاقة
+        </button>
+        <span class="am-pick-hint">المس نقطة اللون على البطاقة الظاهرة أعلاه.</span>
     </div>
 </div>
 
@@ -1733,6 +1843,56 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
             canvas.add(shape); canvas.setActiveObject(shape); updateLayersList();
         });
 
+        // ==== D6 · شكل «شارة العضوية»: قرص ضخم + 3 حلقات فائقة النحافة ====
+        // الوصف: قرص دائري مركزي مصمت وضخم، محاط بثلاث حلقات هندسية متراكزة
+        // فائقة النحافة تشبه خطوطاً دقيقة قريبة من بعضها؛ سمك كل حلقة جزء صغير
+        // جداً من نصف قطر القرص، والمسافات بين الحلقات منتظمة.
+        // البناء (بوحدات 0..100 حول المركز 50,50): قرص ضخم 0..41 · فجوة 41..42 ·
+        // حلقة نحيفة 42..44 · فجوة 44..45 · حلقة نحيفة 45..47 · فجوة 47..48 ·
+        // حلقة نحيفة خارجية 48..50.
+        // نرسم الدوائر من الخارج للداخل باتجاهات متناوبة (CW ثم CCW) مع
+        // fill-rule nonzero — 7 دوائر (عدد فردي) تحفظ القرص مصمتاً وتُظهر
+        // الحلقات الثلاث منفصلة بمسافات منتظمة (حتى لو لم يدعم المتصفح evenodd).
+        var BADGE_RINGS = [50, 48, 47, 45, 44, 42, 41];   // من الخارج إلى الداخل
+        function badgePathData() {
+            var cx = 50, cy = 50, d = '';
+            for (var i = 0; i < BADGE_RINGS.length; i++) {
+                var rad = BADGE_RINGS[i];
+                var sweep = (i % 2 === 0) ? 1 : 0;   // 1=CW · 0=CCW بالتناوب
+                // قوسان متقابلان تماماً: من (cx-r, cy) إلى (cx+r, cy) ثم عودة
+                d += 'M ' + (cx - rad).toFixed(2) + ' ' + cy.toFixed(2) +
+                     ' A ' + rad.toFixed(2) + ' ' + rad.toFixed(2) + ' 0 1 ' + sweep + ' ' + (cx + rad).toFixed(2) + ' ' + cy.toFixed(2) +
+                     ' A ' + rad.toFixed(2) + ' ' + rad.toFixed(2) + ' 0 1 ' + sweep + ' ' + (cx - rad).toFixed(2) + ' ' + cy.toFixed(2) + ' Z';
+            }
+            return d;
+        }
+        // ماسك «شارة العضوية»: قص دائري بقطر أصغر بعدي الصورة (يُحافظ على الشكل دائرياً)
+        function makeBadgeClipPath(w, h) {
+            var size = Math.min(w, h);
+            var p = new fabric.Path(badgePathData(), {
+                originX: 'center', originY: 'center', left: 0, top: 0,
+                absolutePositioned: false, fill: '#000', fillRule: 'nonzero'
+            });
+            var pw = p.width || 100, ph = p.height || 100;
+            var s = size / Math.min(pw, ph);
+            p.scaleX = s; p.scaleY = s;
+            return p;
+        }
+        // «شارة العضوية» تُختار من قائمة «أشكال إضافية» (ليست زراً دائماً في الواجهة)
+        document.getElementById('extraShapeSel').addEventListener('change', (e) => {
+            const val = e.target.value;
+            e.target.value = '';
+            if (val !== 'badge') return;
+            if(!canvas) return toast("ارفع صورة القالب أولاً من اللوحة الأولى", "warn");
+            const shape = new fabric.Path(badgePathData(), {
+                left: canvas.width / 2, top: canvas.height / 2,
+                originX: 'center', originY: 'center', fill: '#c6ac8f',
+                customType: 'shape', customShape: 'badge', fillRule: 'nonzero'
+            });
+            shape.scaleToWidth(200);
+            canvas.add(shape); canvas.setActiveObject(shape); updateLayersList();
+        });
+
         function buildLayersListHTML() {
             const objects = canvas.getObjects();
             if (objects.length === 0) {
@@ -1749,7 +1909,7 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
                 else if(obj.type === 'rect') { icon = 'square'; name = 'مربع'; }
                 else if(obj.type === 'circle') { icon = 'circle'; name = 'دائرة'; }
                 else if(obj.type === 'triangle') { icon = 'triangle'; name = 'مثلث'; }
-                else if(obj.type === 'polygon' || obj.type === 'path') { icon = 'sparkles'; name = 'شكل'; }
+                else if(obj.type === 'polygon' || obj.type === 'path') { icon = obj.customShape === 'badge' ? 'badge' : 'sparkles'; name = obj.customShape === 'badge' ? 'شارة العضوية' : 'شكل'; }
                 const tag = obj.mappedColumn ? `<span class="layer-tag">${escHtml(obj.mappedColumn)}</span>` : '';
                 html += `<div class="layer-item ${obj === activeObj ? 'active' : ''}" data-i="${originalIndex}">
                     <div class="layer-item__label">${ic(icon)}<span>${escHtml(name)}</span></div>
@@ -1793,6 +1953,7 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
             document.getElementById('prop-color-group').style.display = 'none';
             document.getElementById('prop-mask').style.display = 'none';
             dom.propClipping.style.display = 'none';
+            if (window.__syncPropsFab) window.__syncPropsFab();
             dom.elemOpacity.value = obj.opacity || 1;
             dom.opacityVal.innerText = Math.round((obj.opacity || 1) * 100);
             dom.elemAngle.value = Math.round(obj.angle || 0);
@@ -1822,6 +1983,7 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
         function onSelectionCleared() {
             dom.noSelectionMsg.style.display = 'block';
             dom.propertiesPanel.style.display = 'none';
+            if (window.__syncPropsFab) window.__syncPropsFab();
             updateLayersList();
         }
 
@@ -1855,6 +2017,8 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
                     width: w, height: h, rx: Math.min(w, h) * 0.15, ry: Math.min(w, h) * 0.15,
                     originX: 'center', originY: 'center', left: 0, top: 0, absolutePositioned: false
                 });
+            } else if (obj.maskType === 'badge') {
+                obj.clipPath = makeBadgeClipPath(w, h);
             }
             obj.set('dirty', true);
         }
@@ -2581,6 +2745,155 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
 
 <script>
 /* ============================================================
+   D7 · خصائص الجوال: درج منزلق فوق البطاقة + قطارة من الصورة
+   - زر «الخصائص» العائم يظهر فوق زر الطبقات عند تحديد عنصر.
+   - الدرج يعرض لوحة الخصائص الأصلية نفسها (تُنقل DOM مؤقتاً
+     فلا تتكسر روابط الأحداث) والبطاقة تبقى ظاهرة أعلاه.
+   - «التقط لوناً من البطاقة»: قطارة مدمجة في الكانفس تعمل على
+     الجوال (EyeDropper لا يدعمها الجوال) — لمسة على البطاقة
+     تقرأ لون البكسل وتطبّقه على العنصر المحدد.
+   ============================================================ */
+(function () {
+    'use strict';
+    var fab = document.getElementById('propsFab'),
+        drawer = document.getElementById('propsDrawer'),
+        body = document.body,
+        noSel = document.getElementById('noSelectionMsg'),
+        propsPanel = document.getElementById('propertiesPanel'),
+        sidebar = document.querySelector('.right-sidebar'),
+        pickBtn = document.getElementById('btnPickColor');
+    if (!fab || !drawer) return;
+
+    function isMobile() {
+        var bar = document.querySelector('.tabbar');
+        return !!bar && bar.offsetParent !== null;
+    }
+    function otherDrawer() { return document.getElementById('layersDrawer'); }
+    function closeOther() {
+        var d = otherDrawer();
+        if (d && d.classList.contains('open')) {
+            d.classList.remove('open');
+            var f2 = document.getElementById('layersFab');
+            if (f2) f2.setAttribute('aria-expanded', 'false');
+        }
+    }
+
+    /* نقل اللوحة الأصلية للدرج ثم إعادتها (تُحفظ روابط الأحداث كما هي) */
+    function movePanelToDrawer() {
+        if (!drawer.contains(noSel) && noSel) drawer.querySelector('.props-drawer__body').appendChild(noSel);
+        if (!drawer.contains(propsPanel) && propsPanel) drawer.querySelector('.props-drawer__body').appendChild(propsPanel);
+    }
+    function movePanelBack() {
+        if (!sidebar) return;
+        if (noSel && noSel.parentNode !== sidebar) sidebar.insertBefore(noSel, sidebar.querySelector('#propertiesPanel') || sidebar.firstChild);
+        if (propsPanel && propsPanel.parentNode !== sidebar) sidebar.insertBefore(propsPanel, sidebar.querySelector('.panel--grow') || null);
+    }
+
+    function setOpen(open) {
+        drawer.classList.toggle('open', !!open);
+        drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+        fab.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) { closeOther(); movePanelToDrawer(); } else { movePanelBack(); }
+        if (open && typeof updateLayersList === 'function') updateLayersList();
+    }
+    fab.addEventListener('click', function () { setOpen(!drawer.classList.contains('open')); });
+    var closeBtn = document.getElementById('propsDrawerClose');
+    if (closeBtn) closeBtn.addEventListener('click', function () { setOpen(false); });
+    document.addEventListener('click', function (e) {
+        if (!drawer.classList.contains('open')) return;
+        var path = [];
+        try { path = e.composedPath ? e.composedPath() : []; } catch (err) { path = []; }
+        if (path.indexOf(drawer) >= 0 || path.indexOf(fab) >= 0) return;
+        setOpen(false);
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setOpen(false); });
+
+    /* إظهار/إخفاء زر الخصائص حسب وجود عنصر محدد (يستدعيه onObjectSelected/Cleared) */
+    function syncFab() {
+        var hasObj = false;
+        try { hasObj = !!(typeof canvas !== 'undefined' && canvas && canvas.getActiveObject && canvas.getActiveObject()); } catch (e) {}
+        fab.classList.toggle('on', !!hasObj);
+        fab.classList.toggle('off', !hasObj);
+    }
+    window.__syncPropsFab = function () {
+        syncFab();
+        if (!isMobile() || body.getAttribute('data-view') !== 'canvas' || !(function () { try { return !!(typeof canvas !== 'undefined' && canvas && canvas.getObjects); } catch (e) { return false; } })()) setOpen(false);
+        syncFab();
+    };
+    syncFab();
+
+    /* ===== قطارة مدمجة: قراءة لون بكسل من لوحة البطاقة ===== */
+    var picking = false;
+    function readPixel(clientX, clientY) {
+        var cv = (typeof canvas !== 'undefined' && canvas && canvas.lowerCanvasEl) ? canvas : null;
+        if (!cv) return null;
+        var el = cv.lowerCanvasEl, r = el.getBoundingClientRect();
+        if (!r.width || !r.height) return null;
+        var px = Math.round((clientX - r.left) * (el.width / r.width));
+        var py = Math.round((clientY - r.top) * (el.height / r.height));
+        if (px < 0 || py < 0 || px >= el.width || py >= el.height) return null;
+        try {
+            var d = el.getContext('2d').getImageData(px, py, 1, 1).data;
+            return '#' + [d[0], d[1], d[2]].map(function (v) { return ('0' + v.toString(16)).slice(-2); }).join('');
+        } catch (e) { return null; }
+    }
+    function stopPick() {
+        picking = false;
+        body.classList.remove('am-picking');
+        var cv = (typeof canvas !== 'undefined' && canvas) ? canvas : null;
+        if (cv) { cv.defaultCursor = ''; cv.hoverCursor = ''; }
+    }
+    function pickHandler(opt) {
+        if (!picking) return;
+        var e = opt.e || {};
+        var x = e.clientX, y = e.clientY;
+        if (x == null && e.touches && e.touches.length) { x = e.touches[0].clientX; y = e.touches[0].clientY; }
+        if (x == null) { x = opt.pointer && opt.pointer.x; y = opt.pointer && opt.pointer.y; }
+        if (x == null) return;
+        var color = readPixel(x, y);
+        stopPick();
+        if (!color) { if (typeof toast === 'function') toast('التقط من داخل منطقة البطاقة.', 'warn'); return; }
+        var obj = null;
+        try { obj = (typeof canvas !== 'undefined' && canvas.getActiveObject) ? canvas.getActiveObject() : null; } catch (err) {}
+        if (obj && (obj.type === 'i-text' || obj.type === 'rect' || obj.type === 'circle' || obj.type === 'triangle' || obj.type === 'polygon' || obj.type === 'path')) {
+            obj.set('fill', color);
+            var col = document.getElementById('elemColor');
+            if (col) col.value = color;
+            if (typeof updateObjectFill !== 'function') canvas.renderAll();
+            if (typeof toast === 'function') toast('التُقط اللون ' + color + ' وطُبّق على العنصر.', 'ok');
+        } else if (typeof toast === 'function') {
+            toast('التُقط اللون ' + color + '.', 'ok');
+        }
+        if (canvas) canvas.renderAll();
+    }
+    if (pickBtn) pickBtn.addEventListener('click', function () {
+        var cv = (typeof canvas !== 'undefined' && canvas) ? canvas : null;
+        if (!cv) return toast('ارفع قالباً أولاً.', 'warn');
+        var obj = null;
+        try { obj = cv.getActiveObject(); } catch (e) {}
+        if (!obj) { toast('حدّد عنصراً أولاً ليُطبَّق عليه اللون.', 'warn'); return; }
+        picking = true;
+        body.classList.add('am-picking');
+        cv.defaultCursor = 'crosshair'; cv.hoverCursor = 'crosshair';
+        if (typeof toast === 'function') toast('المس الآن نقطة اللون على البطاقة.', 'info');
+    });
+    /* الكانفس يُعاد إنشاؤه عند كل رفع قالب ⇒ نربط الملتقط على كل نسخة حيّة */
+    function wirePick() {
+        var cv = (typeof canvas !== 'undefined' && canvas && canvas.on) ? canvas : null;
+        if (!cv || cv.__amPickHooked) return;
+        cv.__amPickHooked = true;
+        cv.on('mouse:down', pickHandler);
+    }
+    wirePick();
+    setInterval(wirePick, 600);
+    document.addEventListener('change', function () { setTimeout(wirePick, 800); }, true);
+    window.addEventListener('resize', function () { if (picking) stopPick(); });
+    window.__stopPick = stopPick;
+})();
+</script>
+
+<script>
+/* ============================================================
    E1 · معرض قوالب البطاقات — «خاصة» من المستودع و«عامة» من الجهاز
    طبقة إضافية فقط: تستعمل مسارات المكوّن الأصلي (رفع ← initCanvas ←
    setBackgroundImage) بلا نسخة منه، وتحفظ تخطيط الحقول لكل قالب.
@@ -3150,5 +3463,5 @@ body.has-toast .canvas-tools { transform: translateY(calc(-1 * var(--toast-h, 46
 })();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3330d04999bedb4',t:'MTc4ODA4NTEwMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a333520efd75ed49',t:'MTc4ODA4NzkyOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
