@@ -1858,17 +1858,15 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             canvas.add(shape); canvas.setActiveObject(shape); updateLayersList();
         });
 
-        // ==== D6 · شكل «شارة العضوية»: قرص ضخم + 3 حلقات فائقة النحافة ====
-        // الوصف: قرص دائري مركزي مصمت وضخم، محاط بثلاث حلقات هندسية متراكزة
-        // فائقة النحافة تشبه خطوطاً دقيقة قريبة من بعضها؛ سمك كل حلقة جزء صغير
-        // جداً من نصف قطر القرص، والمسافات بين الحلقات منتظمة.
-        // البناء (بوحدات 0..100 حول المركز 50,50): قرص ضخم 0..41 · فجوة 41..42 ·
-        // حلقة نحيفة 42..44 · فجوة 44..45 · حلقة نحيفة 45..47 · فجوة 47..48 ·
-        // حلقة نحيفة خارجية 48..50.
+        // ==== D6 · شكل «شارة العضوية»: قرص ضخم + حلقة واحدة حوله ====
+        // الوصف: قرص دائري مركزي مصمت وضخم، محاط بحلقة هندسية واحدة متراكزة
+        // تشترك معه في المركز، بمسافة منتظمة بينهما.
+        // البناء (بوحدات 0..100 حول المركز 50,50): قرص ضخم 0..40 · فجوة 40..42 ·
+        // حلقة خارجية واحدة 42..50.
         // نرسم الدوائر من الخارج للداخل باتجاهات متناوبة (CW ثم CCW) مع
-        // fill-rule nonzero — 7 دوائر (عدد فردي) تحفظ القرص مصمتاً وتُظهر
-        // الحلقات الثلاث منفصلة بمسافات منتظمة (حتى لو لم يدعم المتصفح evenodd).
-        var BADGE_RINGS = [50, 48, 47, 45, 44, 42, 41];   // من الخارج إلى الداخل
+        // fill-rule nonzero — 3 دوائر (عدد فردي) تحفظ القرص مصمتاً وتُظهر
+        // الحلقة منفصلة بمسافة منتظمة (حتى لو لم يدعم المتصفح evenodd).
+        var BADGE_RINGS = [50, 42, 40];   // من الخارج إلى الداخل
         function badgePathData() {
             var cx = 50, cy = 50, d = '';
             for (var i = 0; i < BADGE_RINGS.length; i++) {
@@ -2376,12 +2374,37 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             const zipBlob = await zip.generateAsync({ type: "blob" });
             return { results, zipBlob, missRows };
         }
+        // عند عدم وجود Excel: يولّد سجل واحد من البطاقة الظاهرة حالياً
+        // حتى يُسمح بالحفظ في Excel/قاعدة بيانات لأي بطاقة بلا جدول.
+        async function SINGLE_ROW_RESULT() {
+            canvas.discardActiveObject(); canvas.renderAll();
+            if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+            const dataUrl = canvas.toDataURL({ format: 'jpeg', quality: 0.97, multiplier: 1 / scaleFactor });
+            const base64Data = dataUrl.replace(/^data:image\/jpeg;base64,/, "");
+            let nm = "بطاقة";
+            const first = canvas.getObjects().filter(function (o) { return o.type === 'i-text' && o.text; })[0];
+            if (first) nm = String(first.text).split('\n')[0].trim().slice(0, 40);
+            if (!nm) nm = "Card_" + Date.now();
+            const safe = window.__amSafeName ? window.__amSafeName(nm, 1) : nm + ".jpg";
+            const zip = new JSZip();
+            zip.file(safe, base64Data, { base64: true });
+            const zipBlob = await zip.generateAsync({ type: "blob" });
+            return {
+                results: [{ 'الاسم': nm, 'ملف البطاقة': safe, 'الحالة': 'تم بنجاح' }],
+                zipBlob: zipBlob,
+                missRows: []
+            };
+        }
+        // تجهيز النتائج: من جدول Excel إن وُجد، وإلا من البطاقة الظاهرة
+        async function ENSURE_RESULTS() {
+            if (typeof excelData !== "undefined" && excelData.length) return await GENERATE_ALL();
+            return await SINGLE_ROW_RESULT();
+        }
         // خيار «ملف Excel»: جداول كل البطاقات في ملف XLSX + صور ZIP مصاحبة
         window.__saveExcelAll = async function () {
             if (!canvas) return toast("ارفع صورة القالب أولاً.", "warn");
-            if (typeof excelData === "undefined" || !excelData.length) return toast("اربط ملف Excel أولاً ثم اختر الحفظ.", "warn");
             try {
-                const { results, zipBlob, missRows } = await GENERATE_ALL();
+                const { results, zipBlob, missRows } = await ENSURE_RESULTS();
                 dom.progressText.innerText = 'جاري حفظ ملف Excel...';
                 const ws = XLSX.utils.json_to_sheet(results);
                 const wb = XLSX.utils.book_new();
@@ -2413,9 +2436,8 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         }
         window.__saveDbAll = async function () {
             if (!canvas) return toast("ارفع صورة القالب أولاً.", "warn");
-            if (typeof excelData === "undefined" || !excelData.length) return toast("اربط ملف Excel أولاً ثم اختر الحفظ.", "warn");
             try {
-                const { results, zipBlob, missRows } = await GENERATE_ALL();
+                const { results, zipBlob, missRows } = await ENSURE_RESULTS();
                 dom.progressText.innerText = 'جاري إنشاء قاعدة البيانات...';
                 const SQL = await ensureSQL();
                 const db = new SQL.Database();
@@ -3614,5 +3636,5 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 })();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a333634df8baed49',t:'MTc4ODA4ODYzNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a333805e2e49ed44',t:'MTc4ODA4OTgyNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
