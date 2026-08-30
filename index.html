@@ -436,6 +436,26 @@ input[type="range"] {
 #btnResetEffects { width: 100%; margin-top: 2px; }
 /* إطار الاقتصاص المتقطع */
 .crop-rect { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 6 4; fill: rgba(88,101,242,.08); }
+/* شريط أدوات الاقتصاص العائم — يظهر فوق البطاقة مهما كان موضع لوحة الخصائص */
+.crop-bar {
+    position: fixed; z-index: 950;
+    left: 50%; transform: translateX(-50%);
+    bottom: calc(var(--tabbar-space, 62px) + env(safe-area-inset-bottom) + 14px);
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--accent-line); border-radius: 16px;
+    background: color-mix(in oklab, var(--panel-solid, #14161a) 96%, transparent);
+    box-shadow: 0 14px 40px rgba(0,0,0,.5);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    max-width: calc(100vw - 20px);
+}
+.crop-bar__hint { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--text-2); white-space: nowrap; }
+.crop-bar__hint .ic { width: 15px; height: 15px; color: var(--accent); flex-shrink: 0; }
+.crop-bar .btn-primary, .crop-bar .btn-secondary { min-height: 42px; padding: 8px 14px; font-size: 13px; }
+@media (max-width: 420px) {
+    .crop-bar { flex-wrap: wrap; justify-content: center; }
+    .crop-bar__hint { width: 100%; justify-content: center; }
+}
 .prop-value { color: var(--accent-2); font-weight: 700; font-variant-numeric: tabular-nums; }
 
 .align-group { display: flex; gap: 5px; }
@@ -1725,6 +1745,17 @@ body.am-picking .props-drawer { border-color: var(--accent); }
     </div>
 </div>
 
+<!-- D16 · شريط أدوات الاقتصاص العائم: يظهر فوق البطاقة أثناء وضع القص (لا يختفي أبداً) -->
+<div id="cropBar" class="crop-bar" role="toolbar" aria-label="أدوات الاقتصاص" style="display: none;">
+    <span class="crop-bar__hint"><svg class="ic" aria-hidden="true"><use href="#i-crop"></use></svg> اسحب حواف الإطار المتقطع ثم:</span>
+    <button type="button" class="btn-primary crop-bar__apply" id="cropBarApply">
+        <svg class="ic" aria-hidden="true"><use href="#i-check"></use></svg> تطبيق القص
+    </button>
+    <button type="button" class="btn-secondary crop-bar__cancel" id="cropBarCancel">
+        <svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg> إلغاء
+    </button>
+</div>
+
 <!-- ============ نافذة التقدّم ============ -->
 <div id="progressModal" class="modal" role="dialog" aria-modal="true" aria-label="جاري التوليد">
     <div class="modal-content">
@@ -2383,7 +2414,10 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             document.getElementById('prop-color-group').style.display = 'none';
             document.getElementById('prop-mask').style.display = 'none';
             dom.propClipping.style.display = 'none';
-            document.getElementById('prop-crop').style.display = 'none';
+            // أثناء وضع الاقتصاص لا نخفي قسم الاقتصاص (تحديد الإطار يطلق أحداث تحديد)
+            if (!window.__cropActive) {
+                document.getElementById('prop-crop').style.display = 'none';
+            }
             document.getElementById('prop-effects').style.display = 'none';
             if (window.__syncPropsFab) window.__syncPropsFab();
             // مغادرة وضع الاقتصاص عند تغيير التحديد (إن كان نشطاً)
@@ -2421,6 +2455,10 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         /* ===== D16 · اقتصاص الصورة فعلياً (Crop) ===== */
         var cropRect = null, cropTarget = null;
         window.__cropActive = false;
+        function setCropBar(show) {
+            var bar = document.getElementById('cropBar');
+            if (bar) bar.style.display = show ? 'flex' : 'none';
+        }
         function startCropMode() {
             var obj = canvas.getActiveObject();
             if (!obj || !(obj.type === 'image' || obj.customType === 'dynamicImage')) return;
@@ -2447,6 +2485,8 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             document.getElementById('btnCancelCrop').style.display = 'block';
             document.getElementById('cropHint').textContent = 'اسحب حواف الإطار أو حرّكه لتحديد منطقة القص، ثم اضغط «تطبيق القص».';
             window.__cropActive = true;
+            // الشريط العائم فوق البطاقة: يضمن ظهور زر «تطبيق القص» دائماً
+            setCropBar(true);
             canvas.renderAll();
         }
         function cancelCropMode() {
@@ -2467,6 +2507,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             if (cb) cb.style.display = 'none';
             var hint = document.getElementById('cropHint');
             if (hint) hint.textContent = 'اضغط «اقتصاص» ثم اسحب حواف الإطار المتقطع لتحديد المنطقة المطلوبة، ثم «تطبيق القص».';
+            setCropBar(false);
             if (canvas) canvas.renderAll();
         }
         function applyCropMode() {
@@ -2520,8 +2561,12 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         document.getElementById('btnStartCrop').addEventListener('click', startCropMode);
         document.getElementById('btnApplyCrop').addEventListener('click', applyCropMode);
         document.getElementById('btnCancelCrop').addEventListener('click', cancelCropMode);
+        // أزرار الشريط العائم تعمل بنفس الدوال
+        var cbApply = document.getElementById('cropBarApply'), cbCancel = document.getElementById('cropBarCancel');
+        if (cbApply) cbApply.addEventListener('click', applyCropMode);
+        if (cbCancel) cbCancel.addEventListener('click', cancelCropMode);
         // أزرار الاقتصاص لا تُغلق درج الخصائص
-        ['btnStartCrop', 'btnApplyCrop', 'btnCancelCrop'].forEach(function (id) {
+        ['btnStartCrop', 'btnApplyCrop', 'btnCancelCrop', 'cropBarApply', 'cropBarCancel'].forEach(function (id) {
             var b = document.getElementById(id);
             if (b) b.addEventListener('mousedown', function (e) { e.stopPropagation(); });
         });
@@ -4429,7 +4474,5 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 })();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3345dea481cb83b',t:'MTc4ODA5ODg5OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a33471dba8c8b83b',t:'MTc4ODA5OTcxNg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
-
-    
