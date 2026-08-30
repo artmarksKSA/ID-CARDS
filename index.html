@@ -1011,6 +1011,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ag-psd@31.0.2/dist/bundle.js"></script>
 <style>
 /* ============================================================
    طبقة المعرض — قائمة منسدلة للقوالب + منسدلة للسجلات، مضبوطة للجوال
@@ -1221,6 +1222,10 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 <button class="save-opt save-opt--zip" id="btnDbAll" role="menuitem">
                     <span class="save-opt__k"><svg class="ic" aria-hidden="true"><use href="#i-database"></use></svg> قاعدة بيانات · SQLite</span>
                     <span class="save-opt__d">نفس بيانات البطاقات في ملف قاعدة بيانات .db</span>
+                </button>
+                <button class="save-opt save-opt--zip" id="btnPsdExport" role="menuitem">
+                    <span class="save-opt__k"><svg class="ic" aria-hidden="true"><use href="#i-file-archive"></use></svg> ملف PSD · بطبقات</span>
+                    <span class="save-opt__d">يصدّر التصميم الحالي كملف فوتوشوب بطبقاته</span>
                 </button>
             </div>
         </div>
@@ -1704,6 +1709,8 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         dom.bgUploader.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
+            // ملف فوتوشوب: يُفتح بطبقاته كعناصر قابلة للتعديل
+            if (/\.psd$/i.test(file.name)) { psdImport(file); e.target.value = ''; return; }
             const reader = new FileReader();
             reader.onload = (event) => {
                 const img = new Image();
@@ -1735,6 +1742,177 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             };
             reader.readAsDataURL(file);
         });
+
+        /* ===== دعم ملفات فوتوشوب (PSD): استيراد الطبقات + تصدير بطبقات ===== */
+        var psdBlendToGco = {
+            'normal': 'source-over', 'multiply': 'multiply', 'screen': 'screen',
+            'overlay': 'overlay', 'darken': 'darken', 'lighten': 'lighten',
+            'color-dodge': 'color-dodge', 'color-burn': 'color-burn',
+            'hard-light': 'hard-light', 'soft-light': 'soft-light',
+            'difference': 'difference', 'exclusion': 'exclusion',
+            'hue': 'hue', 'saturation': 'saturation', 'color': 'color', 'luminosity': 'luminosity'
+        };
+        function psdGcoToBlend(g) {
+            if (!g || g === 'source-over') return 'normal';
+            var out = 'normal';
+            Object.keys(psdBlendToGco).forEach(function (k) { if (psdBlendToGco[k] === g) out = k; });
+            return out;
+        }
+        function psdImport(file) {
+            if (typeof agPsd === 'undefined' || !agPsd.readPsd) {
+                toast('مكتبة قراءة PSD لم تُحمّل — تحققي من الاتصال بالإنترنت.', 'danger');
+                return;
+            }
+            var reader = new FileReader();
+            reader.onload = function (event) {
+                var psd;
+                try { psd = agPsd.readPsd(new Uint8Array(event.target.result)); }
+                catch (err) {
+                    toast('تعذّر قراءة ملف PSD — يُفضَّل حفظه من فوتوشوب بصيغة RGB و8 بت. (' + (err && err.message ? err.message : err) + ')', 'danger');
+                    return;
+                }
+                if (!psd || !psd.width || !psd.height) { toast('ملف PSD فارغ أو غير مدعوم.', 'danger'); return; }
+                var workspace = document.getElementById('workspace');
+                var hidden = !workspace || workspace.clientWidth < 200 || workspace.clientHeight < 200;
+                var pad = hidden ? 32 : 80;
+                var availW = hidden ? window.innerWidth : workspace.clientWidth;
+                var availH = hidden ? window.innerHeight : workspace.clientHeight;
+                var s = Math.min(Math.max(200, availW - pad) / psd.width, Math.max(200, availH - pad) / psd.height, 1);
+                dom.emptyState.style.display = 'none';
+                dom.canvasContainer.style.display = 'block';
+                scaleFactor = s;
+                initCanvas(psd.width * s, psd.height * s);
+                if (window.__fitCanvas) window.__fitCanvas();
+                try { canvas.__psdW = psd.width; canvas.__psdH = psd.height; canvas.__psdScale = s; } catch (e) {}
+                var n = addPsdChildren(psd.children || [], s);
+                canvas.discardActiveObject();
+                canvas.renderAll();
+                try { if (typeof histReset === 'function') histReset(); } catch (e) {}
+                if (typeof updateLayersList === 'function') updateLayersList();
+                toast('تم فتح ملف PSD: ' + n + ' طبقة — كل طبقة عنصر مستقل قابل للتعديل.', 'ok');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        function addPsdChildren(children, s) {
+            var count = 0;
+            if (!children) return 0;
+            for (var i = 0; i < children.length; i++) {
+                var layer = children[i];
+                if (!layer) continue;
+                // مجموعة طبقات: نفتح أطفالها كطبقات مستقلة
+                if (layer.children && layer.children.length) { count += addPsdChildren(layer.children, s); continue; }
+                var obj = null;
+                if (layer.canvas && layer.canvas.width > 1 && layer.canvas.height > 1) {
+                    obj = new fabric.Image(layer.canvas, {
+                        left: (layer.left || 0) * s + (layer.canvas.width * s) / 2,
+                        top: (layer.top || 0) * s + (layer.canvas.height * s) / 2,
+                        originX: 'center', originY: 'center', scaleX: s, scaleY: s
+                    });
+                    lockImageRatio(obj);
+                } else if (layer.text) {
+                    var str = String(layer.text).replace(/\r/g, '').trim();
+                    if (str) {
+                        var fs = 36, ff = 'Arial', fill = '#000000';
+                        try {
+                            var td = layer.textData || {};
+                            var run = (td.runs && td.runs[0]) || {};
+                            if (run.fontSize) fs = run.fontSize;
+                            if (run.fontFamily) ff = run.fontFamily;
+                            if (run.fillColor) { var fc = run.fillColor.value || run.fillColor; if (typeof fc === 'string') fill = fc; }
+                        } catch (e) {}
+                        obj = new fabric.IText(str, {
+                            left: (layer.left || 0) * s, top: (layer.top || 0) * s,
+                            originX: 'left', originY: 'top',
+                            fontSize: Math.max(6, fs * s), fontFamily: ff, fill: fill
+                        });
+                    }
+                }
+                if (obj) {
+                    obj.customType = 'psdLayer';
+                    obj.layerName = layer.name || ('طبقة ' + (i + 1));
+                    obj.__psdLayer = true;
+                    if (layer.visible === false) obj.visible = false;
+                    if (layer.opacity != null) obj.opacity = Math.max(0, Math.min(1, layer.opacity));
+                    if (layer.blendMode && psdBlendToGco[layer.blendMode]) obj.globalCompositeOperation = psdBlendToGco[layer.blendMode];
+                    canvas.add(obj);
+                    count++;
+                }
+            }
+            return count;
+        }
+        function psdExport() {
+            var c = (typeof canvas !== 'undefined' && canvas) ? canvas : null;
+            if (!c) return toast('لا يوجد تصميم لتصديره.', 'warn');
+            if (typeof agPsd === 'undefined' || !agPsd.writePsd) return toast('مكتبة PSD غير متاحة.', 'danger');
+            var expW = (c.__psdW && c.__psdW > 0) ? c.__psdW : Math.round(c.width);
+            var expH = (c.__psdH && c.__psdH > 0) ? c.__psdH : Math.round(c.height);
+            var k = expW / (c.width || 1);
+            var src = c.getObjects().filter(function (o) { return o.visible !== false || o.__psdLayer; });
+            var pending = src.length + (c.backgroundImage ? 1 : 0);
+            if (!pending) return toast('لا توجد عناصر للتصدير.', 'warn');
+            var ec = new fabric.Canvas(null, { width: expW, height: expH, enableRetinaScaling: false });
+            var ready = 0, done = 0;
+            function maybeFinish() {
+                if (done < ready) return;
+                var children = [];
+                if (c.backgroundImage) {
+                    var bg = ec.getObjects()[0] || null;
+                    if (bg) { children.push({ name: 'الخلفية', canvas: layerCanvasFor(ec, bg), left: 0, top: 0, opacity: bg.opacity != null ? bg.opacity : 1, visible: bg.visible !== false }); }
+                }
+                ec.getObjects().slice(c.backgroundImage ? 1 : 0).forEach(function (o) {
+                    var r = o.getBoundingRect();
+                    children.push({
+                        name: o.layerName || o.name || 'طبقة',
+                        canvas: layerCanvasFor(ec, o),
+                        left: Math.round(r.left), top: Math.round(r.top),
+                        opacity: o.opacity != null ? o.opacity : 1,
+                        visible: o.visible !== false,
+                        blendMode: psdGcoToBlend(o.globalCompositeOperation)
+                    });
+                });
+                try {
+                    var out = agPsd.writePsd({ width: expW, height: expH, children: children });
+                    var blob = new Blob([out], { type: 'application/octet-stream' });
+                    saveAs(blob, 'تصميم-معدل.psd');
+                    toast('تم تصدير ملف PSD بطبقات (' + children.length + ' طبقة).', 'ok');
+                } catch (err) {
+                    toast('تعذّر كتابة ملف PSD: ' + (err && err.message ? err.message : err), 'danger');
+                }
+            }
+            function layerCanvasFor(ecv, o) {
+                var r = o.getBoundingRect();
+                var lc = document.createElement('canvas');
+                lc.width = Math.max(2, Math.ceil(r.width));
+                lc.height = Math.max(2, Math.ceil(r.height));
+                ecv.getObjects().forEach(function (x) { x.visible = false; });
+                o.visible = true;
+                ecv.renderAll();
+                var ctx = lc.getContext('2d');
+                ctx.drawImage(ecv.lowerCanvasEl, Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height), 0, 0, lc.width, lc.height);
+                ecv.getObjects().forEach(function (x) { x.visible = true; });
+                return lc;
+            }
+            function pushClone(o) {
+                ready++;
+                o.clone(function (cl) {
+                    cl.set({ scaleX: (o.scaleX || 1) * k, scaleY: (o.scaleY || 1) * k, left: (o.left || 0) * k, top: (o.top || 0) * k });
+                    if (o.clipPath) {
+                        try {
+                            cl.clipPath = o.clipPath.clone();
+                            if (cl.clipPath && cl.clipPath.set) {
+                                cl.clipPath.set({ left: (o.clipPath.left || 0) * k, top: (o.clipPath.top || 0) * k, scaleX: (o.clipPath.scaleX || 1) * k, scaleY: (o.clipPath.scaleY || 1) * k });
+                            }
+                        } catch (e) { cl.clipPath = null; }
+                    }
+                    cl.set({ customType: o.customType, layerName: o.layerName, __psdLayer: o.__psdLayer, globalCompositeOperation: o.globalCompositeOperation || 'source-over' });
+                    ec.add(cl);
+                    done++;
+                    maybeFinish();
+                }, ['clipPath']);
+            }
+            src.forEach(function (o) { pushClone(o); });
+            if (c.backgroundImage) pushClone(c.backgroundImage);
+        }
 
         dom.excelUploader.addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -1977,7 +2155,8 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 let icon = 'shapes';
                 let name = 'عنصر';
                 if(obj.type === 'i-text') { icon = 'type'; name = obj.text.length > 14 ? obj.text.substring(0, 14) + '…' : obj.text; }
-                else if(obj.type === 'image') { icon = 'image'; name = obj.customType === 'dynamicImage' ? 'صورة متغيرة' : (obj.customType === 'qr' ? 'رمز QR' : 'صورة'); }
+                else if(obj.type === 'image') { icon = 'image'; name = obj.customType === 'dynamicImage' ? 'صورة متغيرة' : (obj.customType === 'qr' ? 'رمز QR' : (obj.customType === 'psdLayer' ? (obj.layerName || 'طبقة PSD') : 'صورة')); }
+                else if(obj.customType === 'psdLayer') { icon = 'type'; name = obj.layerName || 'طبقة PSD'; }
                 else if(obj.type === 'rect') { icon = 'square'; name = 'مربع'; }
                 else if(obj.type === 'circle') { icon = 'circle'; name = 'دائرة'; }
                 else if(obj.type === 'triangle') { icon = 'triangle'; name = 'مثلث'; }
@@ -2743,6 +2922,8 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 if (ex) { smenu.removeAttribute(KEEP); window.__saveExcelAll(); return; }
                 var dbb = e.target.closest('#btnDbAll');
                 if (dbb) { smenu.removeAttribute(KEEP); window.__saveDbAll(); return; }
+                var psdBtn = e.target.closest('#btnPsdExport');
+                if (psdBtn) { smenu.removeAttribute(KEEP); psdExport(); return; }
                 var o = e.target.closest('.save-opt[data-scale]'); if (!o) return;
                 window.__exportScale = +o.getAttribute('data-scale');
                 smenu.querySelectorAll('.save-opt[data-scale]').forEach(function (x) {
@@ -3906,5 +4087,5 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 })();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a333e3f28f58b5aa',t:'MTc4ODA5MzkwMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
