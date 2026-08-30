@@ -3932,7 +3932,9 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             if (!c) { del.classList.remove('on'); return; }
             var o = c.getActiveObject();
             if (!o || !canvasViewVisible()) { del.classList.remove('on'); return; }
-            var el = document.querySelector('#canvasContainer .lower-canvas') || document.querySelector('canvas');
+            var el = document.querySelector('#canvasContainer .lower-canvas')
+                || (document.querySelector('#canvasContainer') || document).querySelector('canvas')
+                || document.querySelector('canvas');
             if (!el || !el.getBoundingClientRect().width) { del.classList.remove('on'); return; }
             var r = o.getBoundingRect(true), m = c.viewportTransform;
             var er = el.getBoundingClientRect(), k = er.width / (c.getWidth() || 1);
@@ -3942,6 +3944,19 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             var left = x - tw - 8, top = y + 4;              // يحاذي حافة العنصر (RTL: يساره)
             if (left < pad) left = x + 8;
             if (left + tw > innerWidth - pad) left = innerWidth - pad - tw;
+            // حصر الزر العائم داخل حاوية الكانفس كي لا يغطي لوحة الخصائص/الأزرار الجانبية
+            // (كان الزر يطفو فوق «نسخ التنسيق» فيُحذف النص بدل النسخ)
+            var wrap = document.querySelector('#canvasContainer');
+            if (wrap) {
+                var cr = wrap.getBoundingClientRect();
+                if (cr.width > 0) {
+                    if (left < cr.left + pad) left = cr.left + pad;
+                    if (left + tw > cr.right - pad) left = cr.right - pad - tw;
+                    if (left < pad) left = pad;
+                    if (top < cr.top + pad) top = cr.top + pad;
+                    if (top + th > cr.bottom - pad) top = cr.bottom - pad - th;
+                }
+            }
             var tab = document.querySelector('.tabbar');
             var limit = innerHeight - pad - th - 4;
             if (tab && tab.offsetParent !== null) limit = tab.getBoundingClientRect().top - pad - th;
@@ -4859,5 +4874,5 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 })();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a33608653a03ed58',t:'MTc4ODExNjM2OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a33626b83ce04c45',t:'MTc4ODExNzYxMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
