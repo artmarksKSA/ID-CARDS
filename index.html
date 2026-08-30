@@ -207,6 +207,9 @@ button:disabled { opacity: .45; pointer-events: none; }
     background: rgba(255, 255, 255, .04);
 }
 .btn-icon .ic { width: 18px; height: 18px; }
+.btn-icon:disabled { opacity: .35; pointer-events: none; }
+.undo-cluster { display: flex; align-items: center; gap: 6px; }
+#btnDeleteCard { margin-top: 8px; }
 
 .btn-upload { width: 100%; }
 
@@ -1143,6 +1146,8 @@ body.am-picking .props-drawer { border-color: var(--accent); }
   <symbol id="i-align-right" viewBox="0 0 24 24"><path d="M21 5H3" /> <path d="M21 12H9" /> <path d="M21 19H7" /></symbol>
   <symbol id="i-align-center" viewBox="0 0 24 24"><path d="M21 5H3" /> <path d="M17 12H7" /> <path d="M19 19H5" /></symbol>
   <symbol id="i-align-left" viewBox="0 0 24 24"><path d="M21 5H3" /> <path d="M15 12H3" /> <path d="M17 19H3" /></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M3 7v6h6" /> <path d="M21 17a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 14" /></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="M21 7v6h-6" /> <path d="M3 17a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 14" /></symbol>
 </defs>
 </svg>
 
@@ -1173,6 +1178,14 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             <span class="palette-btn__sw"></span>
         </button>
         <div class="palette-menu" id="paletteMenu" role="menu" aria-label="اختيار لوحة الألوان"></div>
+        <div class="undo-cluster" id="undoCluster">
+            <button class="btn-icon" id="btnUndo" title="تراجع (Ctrl+Z)" aria-label="تراجع عن آخر تعديل" disabled>
+                <svg class="ic" aria-hidden="true"><use href="#i-undo"></use></svg>
+            </button>
+            <button class="btn-icon" id="btnRedo" title="إعادة (Ctrl+Y)" aria-label="إعادة التعديل الملغى" disabled>
+                <svg class="ic" aria-hidden="true"><use href="#i-redo"></use></svg>
+            </button>
+        </div>
         <div class="save-cluster">
             <button id="btnGenerate" class="btn-primary">
                 <svg class="ic" aria-hidden="true"><use href="#i-download"></use></svg>
@@ -1233,6 +1246,10 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                 </button>
                 <input type="file" id="bgUploader" accept="image/png, image/jpeg, image/jpg" />
             </div>
+            <button class="btn-secondary btn-wide" id="btnDeleteCard">
+                <svg class="ic" aria-hidden="true"><use href="#i-trash-2"></use></svg>
+                حذف البطاقة (الخلفية)
+            </button>
         </section>
 
         <section class="panel">
@@ -1678,6 +1695,10 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             canvas.on('object:moving', onMaskedObjectMove);
             canvas.on('object:scaling', onMaskedObjectMove);
             canvas.on('object:rotating', onMaskedObjectMove);
+            canvas.on('object:added', histPushSoon);
+            canvas.on('object:removed', histPushSoon);
+            canvas.on('object:modified', histPushSoon);
+            histReset();
         }
 
         dom.bgUploader.addEventListener('change', (e) => {
@@ -2233,6 +2254,107 @@ body.am-picking .props-drawer { border-color: var(--accent); }
         dom.btnBringForward.onclick = () => { const obj = canvas.getActiveObject(); if(obj){ canvas.bringForward(obj); updateLayersList();} };
         dom.btnSendBackward.onclick = () => { const obj = canvas.getActiveObject(); if(obj){ canvas.sendBackwards(obj); updateLayersList();} };
         dom.btnDeleteElem.onclick = () => { const obj = canvas.getActiveObject(); if(obj){ canvas.remove(obj); updateLayersList();} };
+
+        /* ==== D11 · تراجع / إعادة عام + حذف البطاقة الخلفية ==== */
+        var histStack = [], histIdx = -1, histSuppress = 0, histTimer = 0;
+        var HIST_PROPS = ['__maskFix', 'maskType', 'customType', 'mappedColumn', 'placeholderBounds', '__amKey', 'lockUniScaling'];
+        function histSnapshot() {
+            try { return JSON.stringify(canvas.toJSON(HIST_PROPS)); } catch (e) { return null; }
+        }
+        function histPush() {
+            if (!canvas || histSuppress) return;
+            var s = histSnapshot(); if (s == null) return;
+            if (histStack[histIdx] === s) return;
+            histStack = histStack.slice(0, histIdx + 1);   // يُقصّ فرع الإعادة
+            histStack.push(s);
+            if (histStack.length > 40) histStack.shift();
+            histIdx = histStack.length - 1;
+            histUI();
+        }
+        function histPushSoon() { clearTimeout(histTimer); histTimer = setTimeout(histPush, 350); }
+        // بعد الاسترجاع من JSON: إعادة خصائص الماسك الثابت والنسبة المقفلة
+        function repairLoadedCanvas() {
+            if (!canvas) return;
+            canvas.getObjects().forEach(function (o) {
+                if (o.type === 'image' || o.customType === 'dynamicImage') {
+                    o.lockUniScaling = true;
+                    if (o.maskType && o.maskType !== 'none' && o.clipPath) {
+                        o.objectCaching = false;
+                        var cp = o.clipPath;
+                        cp.absolutePositioned = true;
+                        if (!o.__maskFix && cp.left != null) o.__maskFix = { x: cp.left, y: cp.top };
+                        if (o.__maskFix) cp.set({ left: o.__maskFix.x, top: o.__maskFix.y });
+                        o.set('dirty', true);
+                    }
+                }
+            });
+            canvas.requestRenderAll();
+        }
+        function histRestore(s) {
+            if (!canvas || s == null) return;
+            histSuppress++;
+            clearTimeout(histTimer);
+            try {
+                canvas.loadFromJSON(JSON.parse(s), function () {
+                    repairLoadedCanvas();
+                    if (typeof updateLayersList === 'function') updateLayersList();
+                    canvas.renderAll();
+                });
+            } catch (e) { /* تجاهل */ }
+            setTimeout(function () { histSuppress = Math.max(0, histSuppress - 1); }, 800);
+        }
+        function histUndo() {
+            if (histIdx <= 0) return;
+            histIdx--; histRestore(histStack[histIdx]); histUI();
+        }
+        function histRedo() {
+            if (histIdx >= histStack.length - 1) return;
+            histIdx++; histRestore(histStack[histIdx]); histUI();
+        }
+        function histUI() {
+            var u = document.getElementById('btnUndo'), r = document.getElementById('btnRedo');
+            if (u) u.disabled = histIdx <= 0;
+            if (r) r.disabled = histIdx >= histStack.length - 1;
+        }
+        function histReset() { histStack = []; histIdx = -1; histUI(); }
+        document.getElementById('btnUndo').addEventListener('click', histUndo);
+        document.getElementById('btnRedo').addEventListener('click', histRedo);
+        document.addEventListener('keydown', function (e) {
+            if (!(e.ctrlKey || e.metaKey)) return;
+            var k = e.key.toLowerCase();
+            if (k === 'z' && !e.shiftKey) { e.preventDefault(); histUndo(); }
+            else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); histRedo(); }
+        });
+        // حذف البطاقة الخلفية (القالب) — مع إشعار تراجع
+        document.getElementById('btnDeleteCard').addEventListener('click', function () {
+            var c = (typeof canvas !== 'undefined' && canvas) ? canvas : null;
+            if (!c) return toast('ارفع صورة القالب أولاً.', 'warn');
+            var bg = c.backgroundImage;
+            if (!bg) return toast('لا توجد بطاقة خلفية لحذفها.', 'warn');
+            c.backgroundImage = null;
+            try { curTpl = null; } catch (e) {}
+            try { curId = null; } catch (e) {}
+            try { c.__amTplId = ''; } catch (e) {}
+            var sel = document.getElementById('amTplSel'); if (sel) sel.value = '';
+            c.discardActiveObject();
+            c.renderAll();
+            if (typeof updateLayersList === 'function') updateLayersList();
+            histPush();
+            var box = document.getElementById('toasts');
+            if (box) {
+                var t = document.createElement('div'); t.className = 'toast toast--ok';
+                var msg = document.createElement('span'); msg.textContent = 'تم حذف البطاقة.';
+                var btn = document.createElement('button'); btn.className = 'toast__undo'; btn.type = 'button'; btn.textContent = 'تراجع';
+                btn.onclick = function () {
+                    c.setBackgroundImage(bg, c.renderAll.bind(c), { scaleX: bg.scaleX || 1, scaleY: bg.scaleY || 1 });
+                    if (typeof updateLayersList === 'function') updateLayersList();
+                    histPush();
+                    if (t.parentNode) t.remove();
+                };
+                t.appendChild(msg); t.appendChild(btn); box.appendChild(t);
+                setTimeout(function () { if (t.parentNode) t.remove(); }, 8000);
+            }
+        });
 
         dom.btnMakeClippingMask.onclick = () => {
             const activeObj = canvas.getActiveObject();
@@ -3734,5 +3856,5 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 })();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a333a8c67eea90fa',t:'MTc4ODA5MTQ4MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a333c1163f1290fa',t:'MTc4ODA5MjQ3NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
