@@ -1004,6 +1004,62 @@ body.am-picking .props-drawer { border-color: var(--accent); }
     flex: 1; font-size: 11.5px; color: var(--text-3); line-height: 1.5;
 }
 
+/* ---------- D15 · بوابة الدخول (رمز سري بسيط) ---------- */
+.lock-screen {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    background:
+        radial-gradient(1200px 600px at 85% -10%, rgba(88, 101, 242, .18), transparent 60%),
+        radial-gradient(900px 500px at -10% 110%, rgba(192, 132, 252, .14), transparent 55%),
+        #0b0c0e;
+}
+.lock-card {
+    width: min(400px, 100%);
+    padding: 34px 28px 28px;
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    text-align: center;
+    border: 1px solid var(--line-2); border-radius: 22px;
+    background: color-mix(in oklab, var(--panel-solid, #14161a) 92%, transparent);
+    box-shadow: var(--shadow-key, 0 24px 70px rgba(0,0,0,.55));
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+}
+.lock-logo {
+    width: 64px; height: 64px; border-radius: 18px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0b0c0e; box-shadow: 0 12px 30px rgba(88, 101, 242, .35);
+}
+.lock-logo .ic { width: 30px; height: 30px; }
+.lock-card h2 { margin: 0; font-size: 20px; color: var(--text); }
+.lock-sub { margin: 0; font-size: 12.5px; color: var(--text-3); line-height: 1.7; }
+.lock-input {
+    width: 100%; min-height: 50px; padding: 0 16px;
+    border: 1px solid var(--line-2); border-radius: 12px;
+    background: rgba(255,255,255,.05); color: var(--text);
+    font: inherit; font-size: 15px; text-align: center; letter-spacing: .12em;
+    outline: none; transition: border-color var(--t-fast, .15s), box-shadow var(--t-fast, .15s);
+}
+.lock-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow, rgba(88,101,242,.25)); }
+.lock-btn {
+    width: 100%; min-height: 50px; border: none; border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #0b0c0e;
+    font: inherit; font-size: 15px; font-weight: 800; cursor: pointer;
+    transition: transform var(--t-fast, .15s), box-shadow var(--t-fast, .15s);
+}
+.lock-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(88,101,242,.4); }
+.lock-btn:active { transform: translateY(0); }
+.lock-err { min-height: 16px; margin: 0; font-size: 12px; color: #ff6b6b; font-weight: 700; }
+.lock-remember { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-3); cursor: pointer; user-select: none; }
+.lock-remember input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+@keyframes amShake {
+    10%, 90% { transform: translateX(-2px); }
+    20%, 80% { transform: translateX(4px); }
+    30%, 50%, 70% { transform: translateX(-6px); }
+    40%, 60% { transform: translateX(6px); }
+}
+.lock-screen.shake .lock-card { animation: amShake .5s; }
+
 </style>
 
     <!-- المكتبات: نفس الإصدارات الأصلية، لم يتغيّر منها شيء -->
@@ -1099,6 +1155,62 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 </head>
 <body data-view="tools">
 
+<!-- ============ D15 · بوابة الدخول (رمز سري) ============ -->
+<div id="amLock" class="lock-screen" role="dialog" aria-modal="true" aria-label="بوابة الدخول">
+    <div class="lock-card">
+        <div class="lock-logo"><svg class="ic" aria-hidden="true"><use href="#i-lock"></use></svg></div>
+        <h2>مصمم البطاقات الاحترافي</h2>
+        <p class="lock-sub">هذه الصفحة خاصة بأعضاء الجمعية — أدخلي الرمز السري للدخول إلى لوحة التصميم</p>
+        <input type="password" id="amLockPass" class="lock-input" placeholder="الرمز السري" autocomplete="off" />
+        <button type="button" id="amLockBtn" class="lock-btn">دخول</button>
+        <p class="lock-err" id="amLockErr"></p>
+        <label class="lock-remember"><input type="checkbox" id="amLockRemember" /> تذكريني على هذا الجهاز</label>
+    </div>
+</div>
+<script>
+    /* بوابة دخول بسيطة: تعرض شاشة القفل قبل لوحة التصميم وتتحقق من الرمز.
+       🔑 لتغيير الرمز: عدّلي قيمة AM_PASSWORD في السطر التالي. */
+    (function () {
+        var AM_PASSWORD = 'artmarks';
+        var AM_LS_KEY = 'am_unlocked_v1';
+        function lockReady() {
+            var lock = document.getElementById('amLock');
+            if (!lock) return;
+            var input = document.getElementById('amLockPass');
+            var btn = document.getElementById('amLockBtn');
+            var err = document.getElementById('amLockErr');
+            var rem = document.getElementById('amLockRemember');
+            var stored = null;
+            try { stored = sessionStorage.getItem(AM_LS_KEY) || localStorage.getItem(AM_LS_KEY); } catch (e) {}
+            if (stored === '1') { unlock(lock); return; }
+            document.body.style.overflow = 'hidden';
+            function attempt() {
+                var v = input ? input.value : '';
+                if (v === AM_PASSWORD) {
+                    try {
+                        if (rem && rem.checked) localStorage.setItem(AM_LS_KEY, '1');
+                        else sessionStorage.setItem(AM_LS_KEY, '1');
+                    } catch (e) {}
+                    unlock(lock);
+                } else {
+                    if (err) err.textContent = 'الرمز السري غير صحيح — حاولي مجدداً.';
+                    if (lock) { lock.classList.remove('shake'); void lock.offsetWidth; lock.classList.add('shake'); }
+                    if (input) { input.value = ''; input.focus(); }
+                }
+            }
+            if (btn) btn.addEventListener('click', attempt);
+            if (input) input.addEventListener('keydown', function (e) { if (e.key === 'Enter') attempt(); });
+            setTimeout(function () { if (input) input.focus(); }, 60);
+        }
+        function unlock(lock) {
+            if (lock) lock.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', lockReady);
+        else lockReady();
+    })();
+</script>
+
 <svg xmlns="http://www.w3.org/2000/svg" class="icon-sprite" aria-hidden="true" focusable="false">
 <defs>
   <symbol id="i-paintbrush" viewBox="0 0 24 24"><path d="m14.622 17.897-10.68-2.913" /> <path d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z" /> <path d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15" /></symbol>
@@ -1149,6 +1261,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
   <symbol id="i-align-left" viewBox="0 0 24 24"><path d="M21 5H3" /> <path d="M15 12H3" /> <path d="M17 19H3" /></symbol>
   <symbol id="i-undo" viewBox="0 0 24 24"><path d="M3 7v6h6" /> <path d="M21 17a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 14" /></symbol>
   <symbol id="i-redo" viewBox="0 0 24 24"><path d="M21 7v6h-6" /> <path d="M3 17a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 14" /></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol>
 </defs>
 </svg>
 
@@ -4087,5 +4200,5 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 })();
 
 </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a334300a2b8dedd6',t:'MTc4ODA5NzAyMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
