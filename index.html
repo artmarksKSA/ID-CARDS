@@ -429,6 +429,13 @@ input[type="range"] {
 }
 .toggle-row input { width: 17px; height: 17px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
 .toggle-row .ic { width: 15px; height: 15px; color: var(--accent); flex-shrink: 0; }
+.effect-row { margin-bottom: 10px; }
+.effect-row label { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; color: var(--text-2); margin-bottom: 4px; }
+.effect-row output { font-size: 11px; color: var(--accent-2); font-weight: 800; font-variant-numeric: tabular-nums; }
+.effect-row input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+#btnResetEffects { width: 100%; margin-top: 2px; }
+/* إطار الاقتصاص المتقطع */
+.crop-rect { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 6 4; fill: rgba(88,101,242,.08); }
 .prop-value { color: var(--accent-2); font-weight: 700; font-variant-numeric: tabular-nums; }
 
 .align-group { display: flex; gap: 5px; }
@@ -1262,6 +1269,9 @@ body.am-picking .props-drawer { border-color: var(--accent); }
   <symbol id="i-undo" viewBox="0 0 24 24"><path d="M3 7v6h6" /> <path d="M21 17a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 14" /></symbol>
   <symbol id="i-redo" viewBox="0 0 24 24"><path d="M21 7v6h-6" /> <path d="M3 17a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 14" /></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol>
+  <symbol id="i-crop" viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14" /> <path d="M18 22V8a2 2 0 0 0-2-2H2" /></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+  <symbol id="i-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /> <path d="M3 3v5h5" /></symbol>
 </defs>
 </svg>
 
@@ -1516,6 +1526,50 @@ body.am-picking .props-drawer { border-color: var(--accent); }
                         إزالة الماسك المتقدم
                     </button>
                 </div>
+            </div>
+
+            <!-- D16 · اقتصاص الصورة فعلياً (Crop) -->
+            <div class="prop-group" id="prop-crop" style="display: none;">
+                <label>اقتصاص الصورة (Crop)</label>
+                <p class="prop-hint" id="cropHint">اضغط «اقتصاص» ثم اسحب حواف الإطار المتقطع لتحديد المنطقة المطلوبة، ثم «تطبيق القص».</p>
+                <div class="stack">
+                    <button class="btn-secondary" id="btnStartCrop">
+                        <svg class="ic" aria-hidden="true"><use href="#i-crop"></use></svg>
+                        اقتصاص الصورة
+                    </button>
+                    <button class="btn-primary" id="btnApplyCrop" style="display: none;">
+                        <svg class="ic" aria-hidden="true"><use href="#i-check"></use></svg>
+                        تطبيق القص
+                    </button>
+                    <button class="btn-secondary" id="btnCancelCrop" style="display: none;">
+                        <svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg>
+                        إلغاء
+                    </button>
+                </div>
+            </div>
+
+            <!-- D16 · تأثيرات الصورة مثل فوتوشوب (Hue / تشبع / سطوع) -->
+            <div class="prop-group" id="prop-effects" style="display: none;">
+                <label>تأثيرات الصورة (مثل فوتوشوب)</label>
+                <div class="effect-row">
+                    <label for="effHue">تدرج اللون (Hue)</label>
+                    <input type="range" id="effHue" min="-180" max="180" step="1" value="0" />
+                    <output id="effHueVal">0°</output>
+                </div>
+                <div class="effect-row">
+                    <label for="effSat">التشبع (Saturation)</label>
+                    <input type="range" id="effSat" min="0" max="200" step="1" value="100" />
+                    <output id="effSatVal">100%</output>
+                </div>
+                <div class="effect-row">
+                    <label for="effLight">السطوع (Brightness)</label>
+                    <input type="range" id="effLight" min="-100" max="100" step="1" value="0" />
+                    <output id="effLightVal">0</output>
+                </div>
+                <button class="btn-secondary btn-mini" id="btnResetEffects">
+                    <svg class="ic" aria-hidden="true"><use href="#i-rotate-ccw"></use></svg>
+                    إعادة تعيين التأثيرات
+                </button>
             </div>
 
             <div class="prop-group" id="prop-font">
@@ -2087,6 +2141,18 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             else if (img.setControlsVisibility) img.setControlsVisibility({ mt: false, mb: false, ml: false, mr: false });
             img.set('dirty', true);
         }
+        // حفظ إعدادات تأثيرات الصورة ضمن JSON (التراجع/الإعادة ومشاريع الحفظ)
+        (function () {
+            var orig = fabric.Image.prototype.toObject;
+            fabric.Image.prototype.toObject = function (propertiesToInclude) {
+                // تمرير propertiesToInclude كما تفعل الدالة الأصلية (لا نكسر تضمين الخصائص المخصصة)
+                var obj = orig.call(this, propertiesToInclude);
+                if (this.hueOffset) obj.hueOffset = this.hueOffset;
+                if (this.satOffset != null) obj.satOffset = this.satOffset;
+                if (this.lightOffset) obj.lightOffset = this.lightOffset;
+                return obj;
+            };
+        })();
 
         document.getElementById('addTextBtn').addEventListener('click', () => {
             if(!canvas) return toast("ارفع صورة القالب أولاً من اللوحة الأولى", "warn");
@@ -2317,7 +2383,11 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             document.getElementById('prop-color-group').style.display = 'none';
             document.getElementById('prop-mask').style.display = 'none';
             dom.propClipping.style.display = 'none';
+            document.getElementById('prop-crop').style.display = 'none';
+            document.getElementById('prop-effects').style.display = 'none';
             if (window.__syncPropsFab) window.__syncPropsFab();
+            // مغادرة وضع الاقتصاص عند تغيير التحديد (إن كان نشطاً)
+            if (window.__cropActive && typeof cancelCropMode === 'function') cancelCropMode();
             dom.elemOpacity.value = obj.opacity || 1;
             dom.opacityVal.innerText = Math.round((obj.opacity || 1) * 100);
             dom.elemAngle.value = Math.round(obj.angle || 0);
@@ -2339,11 +2409,170 @@ body.am-picking .props-drawer { border-color: var(--accent); }
             } else if (obj.type === 'image' || obj.customType === 'dynamicImage') {
                 document.getElementById('prop-mask').style.display = 'block';
                 dom.propClipping.style.display = 'block';
+                document.getElementById('prop-crop').style.display = 'block';
+                document.getElementById('prop-effects').style.display = 'block';
                 dom.elemMask.value = obj.maskType || 'none';
                 syncMaskPan(obj);
+                syncEffectUI(obj);
             }
             updateLayersList();
         }
+
+        /* ===== D16 · اقتصاص الصورة فعلياً (Crop) ===== */
+        var cropRect = null, cropTarget = null;
+        window.__cropActive = false;
+        function startCropMode() {
+            var obj = canvas.getActiveObject();
+            if (!obj || !(obj.type === 'image' || obj.customType === 'dynamicImage')) return;
+            if (cropRect) cancelCropMode();
+            cropTarget = obj;
+            // مستطيل قصّ بحجم الصورة المرئية، قابل للتحجيم/النقل بالمقابض
+            var r = obj.getBoundingRect();
+            cropRect = new fabric.Rect({
+                left: r.left, top: r.top, width: r.width, height: r.height,
+                originX: 'left', originY: 'top',
+                fill: 'rgba(88,101,242,.08)', stroke: '#5865f2', strokeWidth: 1.5,
+                strokeDashArray: [6, 4], strokeUniform: true,
+                hasRotatingPoint: false, lockRotation: true,
+                cornerColor: '#5865f2', cornerStyle: 'circle', cornerSize: 12, transparentCorners: false,
+                selectable: true, evented: true, objectCaching: false
+            });
+            // الصورة تُجمَّد أثناء وضع القص كي لا تتحرك بالخطأ
+            cropTarget.selectable = false;
+            cropTarget.lockMovementX = cropTarget.lockMovementY = true;
+            canvas.add(cropRect);
+            canvas.setActiveObject(cropRect);
+            document.getElementById('btnStartCrop').style.display = 'none';
+            document.getElementById('btnApplyCrop').style.display = 'block';
+            document.getElementById('btnCancelCrop').style.display = 'block';
+            document.getElementById('cropHint').textContent = 'اسحب حواف الإطار أو حرّكه لتحديد منطقة القص، ثم اضغط «تطبيق القص».';
+            window.__cropActive = true;
+            canvas.renderAll();
+        }
+        function cancelCropMode() {
+            if (cropRect) { try { canvas.remove(cropRect); } catch (e) {} cropRect = null; }
+            if (cropTarget) {
+                cropTarget.selectable = true;
+                cropTarget.lockMovementX = cropTarget.lockMovementY = false;
+                // لا نعيد تحديده إلا إن كان ما زال موجوداً في الكانفس (بعد القص أُزيل)
+                try { if (canvas.contains(cropTarget)) canvas.setActiveObject(cropTarget); } catch (e) {}
+                cropTarget = null;
+            }
+            window.__cropActive = false;
+            var sb = document.getElementById('btnStartCrop');
+            if (sb) sb.style.display = 'block';
+            var ab = document.getElementById('btnApplyCrop');
+            if (ab) ab.style.display = 'none';
+            var cb = document.getElementById('btnCancelCrop');
+            if (cb) cb.style.display = 'none';
+            var hint = document.getElementById('cropHint');
+            if (hint) hint.textContent = 'اضغط «اقتصاص» ثم اسحب حواف الإطار المتقطع لتحديد المنطقة المطلوبة، ثم «تطبيق القص».';
+            if (canvas) canvas.renderAll();
+        }
+        function applyCropMode() {
+            var img = cropTarget, rect = cropRect;
+            if (!img || !rect) return;
+            var sX = img.scaleX || 1, sY = img.scaleY || 1;
+            var ow = img.width, oh = img.height;
+            if (!ow || !oh) { cancelCropMode(); return; }
+            // عنصر الصورة المفلتر (بعد تأثيرات Hue/تشبع/سطوع إن وُجدت)
+            var el = img.getElement ? img.getElement() : null;
+            if (!el) { cancelCropMode(); return; }
+            var ew = (el.naturalWidth || el.width || ow), eh = (el.naturalHeight || el.height || oh);
+            var kx = ew / ow, ky = eh / oh;
+            // إحداثيات المستطيل داخل الصورة (بوحدات الأبعاد المعلنة)
+            var imgLeft = img.left - (ow * sX) / 2;
+            var imgTop = img.top - (oh * sY) / 2;
+            var x = (rect.left - imgLeft) / sX;
+            var y = (rect.top - imgTop) / sY;
+            var w = rect.width / sX;
+            var h = rect.height / sY;
+            x = Math.max(0, Math.min(x, ow)); y = Math.max(0, Math.min(y, oh));
+            w = Math.max(2, Math.min(w, ow - x)); h = Math.max(2, Math.min(h, oh - y));
+            // بناء الصورة المقتصة
+            var cv = document.createElement('canvas');
+            cv.width = Math.max(2, Math.round(w * kx)); cv.height = Math.max(2, Math.round(h * ky));
+            var ctx = cv.getContext('2d');
+            ctx.drawImage(el, x * kx, y * ky, w * kx, h * ky, 0, 0, cv.width, cv.height);
+            var newImg = new fabric.Image(cv, {
+                left: rect.left + rect.width / 2, top: rect.top + rect.height / 2,
+                originX: 'center', originY: 'center', scaleX: 1, scaleY: 1
+            });
+            // نقل الخصائص كاملة
+            ['maskType', 'customType', '__amKey', 'layerName', '__psdLayer', 'mappedColumn', 'opacity', 'globalCompositeOperation', 'placeholderBounds'].forEach(function (k) {
+                if (img[k] !== undefined) newImg[k] = img[k];
+            });
+            newImg.hueOffset = img.hueOffset || 0; newImg.satOffset = (img.satOffset != null) ? img.satOffset : 100; newImg.lightOffset = img.lightOffset || 0;
+            if (img.clipPath) newImg.clipPath = img.clipPath;
+            lockImageRatio(newImg);
+            applyMaskToObject(newImg);
+            var idx = canvas.getObjects().indexOf(img);
+            if (idx < 0) idx = canvas.getObjects().length;
+            canvas.remove(img);
+            cancelCropMode();
+            canvas.insertAt(newImg, idx, false);
+            canvas.setActiveObject(newImg);
+            canvas.renderAll();
+            if (typeof updateLayersList === 'function') updateLayersList();
+            if (typeof histPushSoon === 'function') histPushSoon();
+            if (typeof toast === 'function') toast('تم اقتصاص الصورة.', 'ok');
+        }
+        document.getElementById('btnStartCrop').addEventListener('click', startCropMode);
+        document.getElementById('btnApplyCrop').addEventListener('click', applyCropMode);
+        document.getElementById('btnCancelCrop').addEventListener('click', cancelCropMode);
+        // أزرار الاقتصاص لا تُغلق درج الخصائص
+        ['btnStartCrop', 'btnApplyCrop', 'btnCancelCrop'].forEach(function (id) {
+            var b = document.getElementById(id);
+            if (b) b.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+        });
+
+        /* ===== D16 · تأثيرات الصورة مثل فوتوشوب (Hue/تشبع/سطوع) ===== */
+        var effHueEl = document.getElementById('effHue'), effSatEl = document.getElementById('effSat'), effLightEl = document.getElementById('effLight');
+        function syncEffectUI(obj) {
+            if (!effHueEl) return;
+            var hue = (obj && obj.hueOffset) || 0;
+            var sat = (obj && obj.satOffset != null) ? obj.satOffset : 100;
+            var light = (obj && obj.lightOffset) || 0;
+            effHueEl.value = hue; effSatEl.value = sat; effLightEl.value = light;
+            var hv = document.getElementById('effHueVal'); if (hv) hv.textContent = hue + '°';
+            var sv = document.getElementById('effSatVal'); if (sv) sv.textContent = sat + '%';
+            var lv = document.getElementById('effLightVal'); if (lv) lv.textContent = light;
+        }
+        function applyEffects(obj) {
+            if (!obj || !(obj.type === 'image' || obj.customType === 'dynamicImage')) return;
+            var hue = (obj.hueOffset || 0), sat = (obj.satOffset != null ? obj.satOffset : 100), light = (obj.lightOffset || 0);
+            var fl = [];
+            if (hue) fl.push(new fabric.Image.filters.HueRotation({ rotation: hue * Math.PI / 180 }));
+            if (sat !== 100) fl.push(new fabric.Image.filters.Saturation({ saturation: sat / 100 }));
+            if (light) fl.push(new fabric.Image.filters.Brightness({ brightness: light / 100 }));
+            obj.filters = fl;
+            try { obj.applyFilters(); } catch (e) {}
+            // إعادة تطبيق الماسك بعد تغيّر أبعاد العنصر المفلتر إن لزم
+            if (obj.clipPath) { obj.set('dirty', true); }
+            canvas.renderAll();
+        }
+        function bindEffect(el, key, valEl, fmt) {
+            if (!el) return;
+            el.addEventListener('input', function () {
+                var obj = canvas.getActiveObject();
+                if (!obj) return;
+                obj[key] = +el.value;
+                if (valEl) valEl.textContent = fmt(+el.value);
+                applyEffects(obj);
+                if (typeof histPushSoon === 'function') histPushSoon();
+            });
+        }
+        bindEffect(effHueEl, 'hueOffset', document.getElementById('effHueVal'), function (v) { return v + '°'; });
+        bindEffect(effSatEl, 'satOffset', document.getElementById('effSatVal'), function (v) { return v + '%'; });
+        bindEffect(effLightEl, 'lightOffset', document.getElementById('effLightVal'), function (v) { return v; });
+        document.getElementById('btnResetEffects').addEventListener('click', function () {
+            var obj = canvas.getActiveObject();
+            if (!obj) return;
+            obj.hueOffset = 0; obj.satOffset = 100; obj.lightOffset = 0;
+            syncEffectUI(obj); applyEffects(obj);
+            if (typeof histPushSoon === 'function') histPushSoon();
+            if (typeof toast === 'function') toast('تمت إعادة تعيين التأثيرات.', 'ok');
+        });
 
         // لوحة «تحريك الصورة داخل القص»: تظهر عند وجود ماسك على الصورة
         function syncMaskPan(obj) {
@@ -4200,5 +4429,7 @@ body.am-picking .props-drawer { border-color: var(--accent); }
 })();
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a334300a2b8dedd6',t:'MTc4ODA5NzAyMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3345dea481cb83b',t:'MTc4ODA5ODg5OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
+
+    
